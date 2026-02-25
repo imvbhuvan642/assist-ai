@@ -1,0 +1,9 @@
+langchain
+langchain-groq
+langchain-community
+langgraph
+langmem
+langsmith
+pydantic
+python-dotenv
+apscheduler
