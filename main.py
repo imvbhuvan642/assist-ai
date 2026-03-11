@@ -1,0 +1,111 @@
+"""Assist AI — terminal chat interface.
+
+Usage:
+    python main.py
+    python main.py --thread my-thread-id
+    python main.py --config path/to/config.yaml
+    python main.py --debug
+
+Type your message and press Enter to send.
+Type 'exit' or 'quit' (or press Ctrl+C) to end the session.
+"""
+
+import argparse
+import sys
+import logging
+
+from src.load_config import load_config
+from src.logger import setup_logging
+from src.agent import create_agent
+
+_THREAD_ID_DEFAULT = "user-default"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Assist AI — proactive employee assistant",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--config",
+        default="config.yaml",
+        metavar="PATH",
+        help="Path to config YAML (default: config.yaml)",
+    )
+    parser.add_argument(
+        "--thread",
+        default=_THREAD_ID_DEFAULT,
+        metavar="ID",
+        help=f"Conversation thread ID (default: {_THREAD_ID_DEFAULT!r})",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable DEBUG logging",
+    )
+    return parser.parse_args()
+
+
+def run():
+    args = parse_args()
+    log_level = "DEBUG" if args.debug else "INFO"
+    log_file = setup_logging(log_level)
+
+    logger = logging.getLogger(__name__)
+
+    print("\n╔══════════════════════════════════════╗")
+    print("║         Assist AI — Terminal         ║")
+    print("╚══════════════════════════════════════╝")
+    print(f"  Thread : {args.thread}")
+    print(f"  Log    : {log_file}")
+    print("  Type 'exit' or 'quit' to end.\n")
+
+    try:
+        config = load_config(args.config)
+        print(f"  Model  : {config.provider.name} / {config.provider.model}\n")
+    except Exception as exc:
+        print(f"[ERROR] Failed to load config: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        print("Loading agent...", flush=True)
+        agent = create_agent(config)
+        print("Agent ready.\n")
+    except Exception as exc:
+        logger.exception("Failed to create agent")
+        print(f"[ERROR] Failed to create agent: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    run_config = {"configurable": {"thread_id": args.thread}}
+
+    while True:
+        try:
+            user_input = input("You: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nGoodbye.")
+            break
+
+        if not user_input:
+            continue
+
+        if user_input.lower() in {"exit", "quit"}:
+            print("Goodbye.")
+            break
+
+        logger.info("User [%s]: %s", args.thread, user_input)
+
+        try:
+            result = agent.invoke(
+                {"messages": [{"role": "user", "content": user_input}]},
+                config=run_config,
+            )
+            response = result["messages"][-1].content
+            print(f"\nAssistant: {response}\n")
+            logger.info("Assistant [%s]: %s", args.thread, response)
+        except Exception as exc:
+            logger.exception("Agent error on input: %s", user_input)
+            print(f"\n[ERROR] {exc}\n", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    run()

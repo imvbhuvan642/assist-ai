@@ -1,9 +1,31 @@
+# Core LangChain ecosystem
 langchain
-langchain-groq
 langchain-community
 langgraph
 langmem
 langsmith
+
+# LLM providers — model-agnostic via init_chat_model
+langchain-openai      # OpenAI (GPT-4o, o3, ...)
+langchain-google-genai # Google Gemini
+langchain-anthropic   # Anthropic Claude
+langchain-groq        # Groq (optional fast inference)
+
+# Configuration & validation
 pydantic
+pyyaml
 python-dotenv
+
+# Persistence
+aiosqlite
+langgraph-checkpoint-sqlite
+
+# Tools
+tavily-python         # Web search
+google-genai          # Cover image generation (Gemini image models)
+
+# Display / formatting
+rich
+
+# Scheduling (optional)
 apscheduler

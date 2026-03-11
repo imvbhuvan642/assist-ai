@@ -1,0 +1,108 @@
+"""Agent factory — assembles the Proactive Assist AI agent from modular components."""
+
+import logging
+from pathlib import Path
+
+from dotenv import load_dotenv
+from langchain.chat_models import init_chat_model
+from deepagents import create_deep_agent
+
+from .load_config import AppConfig, load_config
+from .memory import create_checkpointer, create_backend
+from .load_tools import load_tools
+from .load_skills import create_skill_router, SKILLS_DIR
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+
+def create_agent(config: AppConfig | None = None):
+    """Create and return the Assist-AI proactive agent.
+
+    Parameters
+    ----------
+    config:
+        Pre-loaded AppConfig. If *None*, ``config.yaml`` in the current
+        working directory is loaded automatically.
+
+    Returns
+    -------
+    agent
+        A compiled LangGraph agent ready to ``.invoke()`` or ``.astream()``.
+    """
+    if config is None:
+        config = load_config()
+
+    # ------------------------------------------------------------------
+    # LLM — model-agnostic via langchain.chat_models.init_chat_model
+    # Supports: openai | google_genai | anthropic
+    # ------------------------------------------------------------------
+    model_kwargs: dict = {}
+    if config.provider.temperature is not None:
+        model_kwargs["temperature"] = config.provider.temperature
+    if config.provider.max_tokens is not None:
+        model_kwargs["max_tokens"] = config.provider.max_tokens
+    if config.provider.base_url:
+        model_kwargs["base_url"] = config.provider.base_url
+
+    model = init_chat_model(
+        f"{config.provider.name}:{config.provider.model}",
+        **model_kwargs,
+    )
+    logger.info("LLM provider: %s / %s", config.provider.name, config.provider.model)
+
+    # ------------------------------------------------------------------
+    # Tools
+    # ------------------------------------------------------------------
+    tools = load_tools(config, model)
+
+    # ------------------------------------------------------------------
+    # Memory: persistent checkpointer + CompositeBackend
+    # - SqliteSaver  → conversation history persists across restarts
+    # - CompositeBackend → /memories/* written to real disk (never lost)
+    # ------------------------------------------------------------------
+    checkpointer = create_checkpointer()
+    backend = create_backend()
+
+    # ------------------------------------------------------------------
+    # Skill-router subagent
+    # Returns a SubAgent dict (name/description/system_prompt/model) that
+    # deepagents uses to build the subagent internally. The main agent calls
+    # it via the task() tool to pick the right skill before executing.
+    # ------------------------------------------------------------------
+    skill_router = None
+    if config.skills.enabled and Path(SKILLS_DIR).exists():
+        skill_router = create_skill_router(SKILLS_DIR, model)
+
+    # ------------------------------------------------------------------
+    # System prompt
+    # ------------------------------------------------------------------
+    system_prompt_path = _PROJECT_ROOT / "prompts" / "agent_system_prompt.md"
+    system_prompt: str | None = None
+    if system_prompt_path.exists():
+        system_prompt = system_prompt_path.read_text(encoding="utf-8")
+
+    # ------------------------------------------------------------------
+    # Assemble agent
+    # ------------------------------------------------------------------
+    agent = create_deep_agent(
+        model=model,
+        tools=tools,
+        backend=backend,
+        skills=[SKILLS_DIR] if config.skills.enabled and Path(SKILLS_DIR).exists() else None,
+        subagents=[skill_router] if skill_router else None,
+        checkpointer=checkpointer,
+        system_prompt=system_prompt,
+    )
+
+    logger.info(
+        "Agent created | provider=%s model=%s tools=%d skills_dir=%s",
+        config.provider.name,
+        config.provider.model,
+        len(tools),
+        SKILLS_DIR if config.skills.enabled else "disabled",
+    )
+    return agent

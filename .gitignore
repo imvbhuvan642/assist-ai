@@ -2,7 +2,11 @@
 __pycache__/
 *.py[codz]
 *$py.class
-
+/.claude
+.mcp.json
+/data
+/memories
+/logs
 # C extensions
 *.so
 
