@@ -53,4 +53,14 @@ def load_tools(config: AppConfig, model) -> list:
     except Exception as exc:
         logger.warning("Skipping Gmail toolkit: %s", exc)
 
+    # Google Calendar tools
+    try:
+        from tools.calendar_tools import get_calendar_tools
+        calendar_tools = get_calendar_tools()
+        if calendar_tools:
+            tools.extend(calendar_tools)
+            logger.info("Tool loaded: Calendar toolkit (%d tools)", len(calendar_tools))
+    except Exception as exc:
+        logger.warning("Skipping Calendar toolkit: %s", exc)
+
     return tools

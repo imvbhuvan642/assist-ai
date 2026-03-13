@@ -3,7 +3,7 @@ agent:
   max_iterations: 42
 
 # --- LLM Provider ---
-# Set `name` to one of: openai | google_genai | anthropic
+# Set `name` to one of: openai | google_genai | anthropic | groq
 # Set `model` to a model supported by that provider.
 # provider:
 #   name: openai
@@ -12,11 +12,17 @@ agent:
 #   max_tokens: 8192
 
 # --- Uncomment to use Google Gemini ---
+# provider:
+#   name: google_genai
+#   model: gemini-2.0-flash
+#   temperature: 1.0
+
+
+# --- Uncomment to use Groq Llama ---
 provider:
-  name: google_genai
-  # model: gemini-2.0-flash
-  model: gemini-3-flash-preview
-  temperature: 1.0
+  name: groq
+  model: llama-3.3-70b-versatile
+  temperature: 0.5
   max_tokens: 8192
 
 # --- Uncomment to use Anthropic Claude ---

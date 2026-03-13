@@ -18,7 +18,7 @@ class AgentConfig(BaseModel):
 
 
 class ProviderConfig(BaseModel):
-    name: Literal["openai", "google_genai", "anthropic"]
+    name: Literal["openai", "google_genai", "anthropic", "groq"]
     model: str
     temperature: Optional[float] = 0.5
     max_tokens: Optional[int] = 8192
