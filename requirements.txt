@@ -25,8 +25,17 @@ langgraph-checkpoint-sqlite
 tavily-python         # Web search
 google-genai          # Cover image generation (Gemini image models)
 
+# Gmail tools
+langchain-google-community[gmail]
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+
 # Display / formatting
 rich
 
 # Scheduling (optional)
 apscheduler
+
+# Observability
+langfuse

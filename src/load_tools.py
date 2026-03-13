@@ -43,5 +43,14 @@ def load_tools(config: AppConfig, model) -> list:
             logger.info("Tool loaded: SQL toolkit (%d tools)", len(sql_tools))
         except Exception as exc:
             logger.warning("Skipping SQL toolkit: %s", exc)
+    # Gmail tools
+    try:
+        from tools.gmail_tools import get_gmail_tools
+        gmail_tools = get_gmail_tools()
+        if gmail_tools:
+            tools.extend(gmail_tools)
+            logger.info("Tool loaded: Gmail toolkit (%d tools)", len(gmail_tools))
+    except Exception as exc:
+        logger.warning("Skipping Gmail toolkit: %s", exc)
 
     return tools
