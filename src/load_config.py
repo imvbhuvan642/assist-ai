@@ -49,12 +49,17 @@ class LoggingConfig(BaseModel):
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
 
+class LangfuseConfig(BaseModel):
+    enabled: bool = False
+
+
 class AppConfig(BaseModel):
     agent: AgentConfig = AgentConfig()
     provider: ProviderConfig
     database: DatabaseConfig = DatabaseConfig()
     skills: SkillsConfig = SkillsConfig()
     logging: LoggingConfig = LoggingConfig()
+    langfuse: LangfuseConfig = LangfuseConfig()
 
 
 # ---------------------------------------------------------------------------

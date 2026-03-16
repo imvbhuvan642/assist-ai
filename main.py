@@ -76,7 +76,17 @@ def run():
         print(f"[ERROR] Failed to create agent: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    run_config = {"configurable": {"thread_id": args.thread}}
+    run_config: dict = {"configurable": {"thread_id": args.thread}}
+
+    if config.langfuse.enabled:
+        try:
+            from langfuse.langchain import CallbackHandler as LangfuseCallbackHandler
+            langfuse_handler = LangfuseCallbackHandler()
+            run_config["callbacks"] = [langfuse_handler]
+            logger.info("Langfuse tracing enabled (session_id=%s)", args.thread)
+            print("  Tracing: Langfuse enabled\n")
+        except ImportError:
+            logger.warning("Langfuse enabled in config but 'langfuse' package not installed — skipping")
 
     while True:
         try:

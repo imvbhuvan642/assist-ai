@@ -25,6 +25,9 @@ langgraph-checkpoint-sqlite
 tavily-python         # Web search
 google-genai          # Cover image generation (Gemini image models)
 
+# Observability
+langfuse
+
 # Display / formatting
 rich
 

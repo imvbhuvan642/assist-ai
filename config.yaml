@@ -7,7 +7,7 @@ agent:
 # Set `model` to a model supported by that provider.
 provider:
   name: openai
-  model: gpt-5.2
+  model: gpt-5-mini
   temperature: 0.5
   max_tokens: 8192
 
@@ -33,3 +33,9 @@ skills:
 
 logging:
   level: INFO
+
+# --- Langfuse Tracing ---
+# Set enabled: true and add LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY,
+# and LANGFUSE_BASE_URL to your .env file.
+langfuse:
+  enabled: true
