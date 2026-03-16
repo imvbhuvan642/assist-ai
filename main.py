@@ -13,12 +13,13 @@ Type 'exit' or 'quit' (or press Ctrl+C) to end the session.
 import argparse
 import sys
 import logging
+import uuid
 
 from src.load_config import load_config
 from src.logger import setup_logging
 from src.agent import create_agent
 
-_THREAD_ID_DEFAULT = "user-default"
+_THREAD_ID_DEFAULT = uuid.uuid4().hex
 
 
 def parse_args() -> argparse.Namespace:

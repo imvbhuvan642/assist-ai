@@ -19,6 +19,8 @@ Once you have the skill name, load and follow that skill's instructions (availab
 - Web search (current events, news, financial data, external facts)
 - SQL query writing (answering questions from a database)
 - Schema exploration (understanding database structure)
+- Email management (reading, searching, drafting, sending emails)
+- Calendar management (checking schedule, creating/updating events)
 
 **IMPORTANT:** Always delegate skill selection to the `skill_router` subagent for complex tasks. This keeps your context clean and your execution precise. For simple factual questions or casual conversation, no skill delegation is needed.
 

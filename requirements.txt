@@ -24,6 +24,8 @@ langgraph-checkpoint-sqlite
 # Tools
 tavily-python         # Web search
 google-genai          # Cover image generation (Gemini image models)
+langchain-google-community[gmail] # Gmail tools
+langchain-google-community[calendar] # Calendar tools
 
 # Observability
 langfuse

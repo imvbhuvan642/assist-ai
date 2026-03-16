@@ -45,3 +45,15 @@ Request: "What time is it?"
 skill: none
 reason: This is a simple factual question that does not require a specialized skill.
 ```
+
+Request: "Do I have any new emails from Alice?"
+```
+skill: email-management
+reason: This requires accessing and searching the user's Gmail inbox.
+```
+
+Request: "What's on my schedule for today?"
+```
+skill: calendar-management
+reason: This requires accessing the user's Google Calendar to fetch today's events.
+```
