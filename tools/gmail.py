@@ -22,13 +22,11 @@ def get_gmail_tools() -> list:
 
     # If the credentials file doesn't exist, we can't initialize the Gmail toolkit
     if not os.path.exists(credentials_file) and not os.path.exists(token_file):
-        logger.warning(
-            "Gmail credentials not found at %s. "
+        raise FileNotFoundError(
+            f"Gmail credentials not found at {credentials_file}. "
             "Please download your credentials.json from Google Cloud Console "
-            "and place it in the project root.",
-            credentials_file
+            "and place it in the project root."
         )
-        return []
 
     try:
         # This will trigger the OAuth flow if token_file doesn't exist or is invalid

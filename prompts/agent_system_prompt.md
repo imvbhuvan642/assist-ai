@@ -12,7 +12,7 @@ This file persists across all sessions — it is your long-term memory for this 
 
 You have access to specialized skills for complex tasks. **Before executing any non-trivial task**, use the `task()` tool to call the `skill_router` subagent with a description of what the user needs. It will return the most appropriate skill name and a brief rationale.
 
-Once you have the skill name, load and follow that skill's instructions (available in `/skills/<skill-name>/SKILL.md`) to execute the task correctly.
+Once you have the skill name, load and follow that skill's instructions (available at `skills/<skill-name>/SKILL.md` relative to the project root) to execute the task correctly.
 
 **Available skill categories:**
 - Content writing (blog posts, tutorials, articles)

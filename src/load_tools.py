@@ -37,8 +37,8 @@ def load_tools(config: AppConfig, model) -> list:
         gmail_tools = get_gmail_tools()
         tools.extend(gmail_tools)
         logger.info("Tool loaded: Gmail toolkit (%d tools)", len(gmail_tools))
-    except Exception as exc:
-        logger.warning("Skipping Gmail toolkit: %s", exc)
+    except ImportError as exc:
+        logger.warning("Skipping Gmail toolkit (not installed): %s", exc)
 
     # Calendar tools
     try:
@@ -46,8 +46,8 @@ def load_tools(config: AppConfig, model) -> list:
         calendar_tools = get_calendar_tools()
         tools.extend(calendar_tools)
         logger.info("Tool loaded: Calendar toolkit (%d tools)", len(calendar_tools))
-    except Exception as exc:
-        logger.warning("Skipping Calendar toolkit: %s", exc)
+    except ImportError as exc:
+        logger.warning("Skipping Calendar toolkit (not installed): %s", exc)
 
     # SQL database tools
     if config.database.url:

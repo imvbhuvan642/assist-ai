@@ -23,13 +23,11 @@ def get_calendar_tools() -> list:
 
     # If the credentials file doesn't exist and there's no cached token, we can't proceed
     if not os.path.exists(credentials_file) and not os.path.exists(token_file):
-        logger.warning(
-            "Google Calendar credentials not found at %s. "
+        raise FileNotFoundError(
+            f"Google Calendar credentials not found at {credentials_file}. "
             "Please download your credentials.json from Google Cloud Console "
-            "and place it in the project root.",
-            credentials_file,
+            "and place it in the project root."
         )
-        return []
 
     try:
         # Build credentials with calendar scope — reuses the same OAuth flow as Gmail.
