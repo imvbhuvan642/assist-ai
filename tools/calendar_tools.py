@@ -19,7 +19,7 @@ def get_calendar_tools() -> list:
         return []
 
     token_file = os.environ.get("GOOGLE_CALENDAR_TOKEN", "token.json")
-    credentials_file = os.environ.get("GOOGLE_CALENDAR_CREDENTIALS", "credentials.json")
+    credentials_file = os.environ.get("GOOGLE_CREDENTIALS", "credentials.json")
 
     # If the credentials file doesn't exist and there's no cached token, we can't proceed
     if not os.path.exists(credentials_file) and not os.path.exists(token_file):
