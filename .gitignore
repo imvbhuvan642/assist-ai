@@ -9,6 +9,7 @@ __pycache__/
 /logs
 # C extensions
 *.so
+/creds
 
 # Distribution / packaging
 .Python
