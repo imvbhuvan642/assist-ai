@@ -10,7 +10,6 @@ from deepagents import create_deep_agent
 from .load_config import AppConfig, load_config
 from .memory import create_checkpointer, create_backend
 from .load_tools import load_tools
-from .load_skills import create_skill_router, SKILLS_DIR
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -62,20 +61,10 @@ def create_agent(config: AppConfig | None = None):
     # ------------------------------------------------------------------
     # Memory: persistent checkpointer + CompositeBackend
     # - SqliteSaver  → conversation history persists across restarts
-    # - CompositeBackend → /memories/* written to real disk (never lost)
+    # - CompositeBackend → /memories/* and /skills/* on real disk
     # ------------------------------------------------------------------
     checkpointer = create_checkpointer()
     backend = create_backend()
-
-    # ------------------------------------------------------------------
-    # Skill-router subagent
-    # Returns a SubAgent dict (name/description/system_prompt/model) that
-    # deepagents uses to build the subagent internally. The main agent calls
-    # it via the task() tool to pick the right skill before executing.
-    # ------------------------------------------------------------------
-    skill_router = None
-    if config.skills.enabled and Path(SKILLS_DIR).exists():
-        skill_router = create_skill_router(SKILLS_DIR, model)
 
     # ------------------------------------------------------------------
     # System prompt
@@ -87,22 +76,24 @@ def create_agent(config: AppConfig | None = None):
 
     # ------------------------------------------------------------------
     # Assemble agent
+    # The SDK's SkillsMiddleware handles skill discovery and prompt
+    # injection automatically via the skills= parameter. Skills are
+    # read from the /skills/ route in the CompositeBackend.
     # ------------------------------------------------------------------
     agent = create_deep_agent(
         model=model,
         tools=tools,
         backend=backend,
-        skills=[SKILLS_DIR] if config.skills.enabled and Path(SKILLS_DIR).exists() else None,
-        subagents=[skill_router] if skill_router else None,
+        skills=["/skills/"] if config.skills.enabled else None,
         checkpointer=checkpointer,
         system_prompt=system_prompt,
     )
 
     logger.info(
-        "Agent created | provider=%s model=%s tools=%d skills_dir=%s",
+        "Agent created | provider=%s model=%s tools=%d skills=%s",
         config.provider.name,
         config.provider.model,
         len(tools),
-        SKILLS_DIR if config.skills.enabled else "disabled",
+        "enabled" if config.skills.enabled else "disabled",
     )
     return agent

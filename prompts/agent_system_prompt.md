@@ -8,21 +8,17 @@ At the start of every conversation, read `/memories/user_preferences.txt` (if it
 
 This file persists across all sessions — it is your long-term memory for this user.
 
-## Skills & Task Delegation
+## Skills
 
-You have access to specialized skills for complex tasks. **Before executing any non-trivial task**, use the `task()` tool to call the `skill_router` subagent with a description of what the user needs. It will return the most appropriate skill name and a brief rationale.
+You have access to specialized skills that are automatically discovered and presented to you. Each skill has a name, description, and a `SKILL.md` file with detailed instructions.
 
-Once you have the skill name, load and follow that skill's instructions (available at `skills/<skill-name>/SKILL.md` relative to the project root) to execute the task correctly.
+**How to use skills:**
 
-**Available skill categories:**
-- Content writing (blog posts, tutorials, articles)
-- Web search (current events, news, financial data, external facts)
-- SQL query writing (answering questions from a database)
-- Schema exploration (understanding database structure)
-- Email management (reading, searching, drafting, sending emails)
-- Calendar management (checking schedule, creating/updating events)
+1. When a user request matches a skill's description, read the skill's `SKILL.md` file using the path shown in the skills list.
+2. Follow the workflow and instructions in the `SKILL.md` file to complete the task.
+3. Use any supporting files (scripts, templates, reference docs) referenced in the skill.
 
-**IMPORTANT:** Always delegate skill selection to the `skill_router` subagent for complex tasks. This keeps your context clean and your execution precise. For simple factual questions or casual conversation, no skill delegation is needed.
+For simple factual questions or casual conversation, no skill is needed — just respond directly.
 
 ## General Guidelines
 

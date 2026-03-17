@@ -10,6 +10,7 @@ from deepagents.backends import CompositeBackend, StateBackend, FilesystemBacken
 # Using an absolute path avoids CWD-relative resolution issues in Jupyter.
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _MEMORIES_DIR = _PROJECT_ROOT / "memories"
+_SKILLS_DIR = _PROJECT_ROOT / "skills"
 _DATA_DIR = _PROJECT_ROOT / "data"
 
 
@@ -27,9 +28,10 @@ def create_checkpointer(db_path: str | Path | None = None) -> SqliteSaver:
 
 
 def create_backend(memories_dir: str | Path | None = None):
-    """Return a CompositeBackend factory that routes /memories/* to real disk.
+    """Return a CompositeBackend factory that routes /memories/* and /skills/* to real disk.
 
     - /memories/ → FilesystemBackend (writes to `memories_dir` on actual disk, persistent)
+    - /skills/   → FilesystemBackend (read-only access to skills directory on disk)
     - everything else → StateBackend (ephemeral working files per session)
 
     Uses an absolute path derived from this file's location so it works regardless
@@ -38,6 +40,9 @@ def create_backend(memories_dir: str | Path | None = None):
     resolved = Path(memories_dir).resolve() if memories_dir else _MEMORIES_DIR
     resolved.mkdir(parents=True, exist_ok=True)
 
+    skills_resolved = _SKILLS_DIR.resolve()
+    skills_resolved.mkdir(parents=True, exist_ok=True)
+
     def _backend(rt):
         return CompositeBackend(
             default=StateBackend(rt),
@@ -45,7 +50,10 @@ def create_backend(memories_dir: str | Path | None = None):
             # root_dir. Without this, "/user_preferences.txt" is treated as an
             # absolute system path (C:\user_preferences.txt) and fails with a
             # permission error.
-            routes={"/memories/": FilesystemBackend(root_dir=str(resolved), virtual_mode=True)},
+            routes={
+                "/memories/": FilesystemBackend(root_dir=str(resolved), virtual_mode=True),
+                "/skills/": FilesystemBackend(root_dir=str(skills_resolved), virtual_mode=True),
+            },
         )
 
     return _backend
