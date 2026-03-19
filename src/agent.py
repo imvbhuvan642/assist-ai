@@ -69,10 +69,27 @@ def create_agent(config: AppConfig | None = None):
     # ------------------------------------------------------------------
     # System prompt
     # ------------------------------------------------------------------
+    system_prompt_parts = []
+
+    identity_path = _PROJECT_ROOT / "memories" / "identity.md"
+    if identity_path.exists():
+        content = identity_path.read_text(encoding="utf-8").strip()
+        if content:
+            system_prompt_parts.append(content)
+
+    agent_path = _PROJECT_ROOT / "memories" / "agent.md"
+    if agent_path.exists():
+        content = agent_path.read_text(encoding="utf-8").strip()
+        if content:
+            system_prompt_parts.append(content)
+
     system_prompt_path = _PROJECT_ROOT / "prompts" / "agent_system_prompt.md"
-    system_prompt: str | None = None
     if system_prompt_path.exists():
-        system_prompt = system_prompt_path.read_text(encoding="utf-8")
+        content = system_prompt_path.read_text(encoding="utf-8").strip()
+        if content:
+            system_prompt_parts.append(content)
+
+    system_prompt = "\n\n".join(system_prompt_parts) if system_prompt_parts else None
 
     # ------------------------------------------------------------------
     # Assemble agent
