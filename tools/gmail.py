@@ -18,7 +18,7 @@ def get_gmail_tools() -> list:
         return []
 
     credentials_file = os.environ.get("GOOGLE_CREDENTIALS", "credentials.json")
-    token_file = os.environ.get("GMAIL_TOKEN", "token.json")
+    token_file = os.environ.get("GOOGLE_TOKEN", "token.json")
 
     # If the credentials file doesn't exist, we can't initialize the Gmail toolkit
     if not os.path.exists(credentials_file) and not os.path.exists(token_file):
