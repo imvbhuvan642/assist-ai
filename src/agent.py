@@ -18,7 +18,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-def create_agent(config: AppConfig | None = None):
+async def create_agent(config: AppConfig | None = None):
     """Create and return the Assist-AI proactive agent.
 
     Parameters
@@ -30,7 +30,7 @@ def create_agent(config: AppConfig | None = None):
     Returns
     -------
     agent
-        A compiled LangGraph agent ready to ``.invoke()`` or ``.astream()``.
+        A compiled LangGraph agent ready to ``.ainvoke()`` or ``.astream()``.
     """
     if config is None:
         config = load_config()
@@ -57,13 +57,13 @@ def create_agent(config: AppConfig | None = None):
     # Tools
     # ------------------------------------------------------------------
     tools = load_tools(config, model)
-
+    logger.info("Tools loaded: %d", len(tools))
     # ------------------------------------------------------------------
     # Memory: persistent checkpointer + CompositeBackend
     # - SqliteSaver  → conversation history persists across restarts
     # - CompositeBackend → /memories/* and /skills/* on real disk
     # ------------------------------------------------------------------
-    checkpointer = create_checkpointer()
+    checkpointer = await create_checkpointer()
     backend = create_backend()
 
     # ------------------------------------------------------------------

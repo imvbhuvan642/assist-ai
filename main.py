@@ -11,6 +11,7 @@ Type 'exit' or 'quit' (or press Ctrl+C) to end the session.
 """
 
 import argparse
+import asyncio
 import sys
 import logging
 import uuid
@@ -47,7 +48,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run():
+async def run():
     args = parse_args()
     log_level = "DEBUG" if args.debug else "INFO"
     log_file = setup_logging(log_level)
@@ -70,7 +71,7 @@ def run():
 
     try:
         print("Loading agent...", flush=True)
-        agent = create_agent(config)
+        agent = await create_agent(config)
         print("Agent ready.\n")
     except Exception as exc:
         logger.exception("Failed to create agent")
@@ -106,7 +107,7 @@ def run():
         logger.info("User [%s]: %s", args.thread, user_input)
 
         try:
-            result = agent.invoke(
+            result = await agent.ainvoke(
                 {"messages": [{"role": "user", "content": user_input}]},
                 config=run_config,
             )
@@ -119,4 +120,4 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    asyncio.run(run())

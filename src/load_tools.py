@@ -62,4 +62,10 @@ def load_tools(config: AppConfig, model) -> list:
         except Exception as exc:
             logger.warning("Skipping SQL toolkit: %s", exc)
 
+    # MCP server tools
+    if config.mcp.servers:
+        from .load_mcp import load_mcp_tools
+        mcp_tools = load_mcp_tools(config.mcp.servers)
+        tools.extend(mcp_tools)
+
     return tools

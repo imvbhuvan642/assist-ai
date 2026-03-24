@@ -5,6 +5,7 @@ langchain-community
 langgraph
 langmem
 langsmith
+langchain-mcp-adapters
 
 # LLM providers — model-agnostic via init_chat_model
 langchain-openai      # OpenAI (GPT-4o, o3, ...)

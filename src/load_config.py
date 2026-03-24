@@ -53,6 +53,20 @@ class LangfuseConfig(BaseModel):
     enabled: bool = False
 
 
+class MCPServerConfig(BaseModel):
+    transport: Literal["stdio", "sse"] = "stdio"
+    # stdio fields
+    command: Optional[str] = None
+    args: list = []
+    env: dict = {}
+    # sse fields
+    url: Optional[str] = None
+
+
+class MCPConfig(BaseModel):
+    servers: dict[str, MCPServerConfig] = {}
+
+
 class AppConfig(BaseModel):
     agent: AgentConfig = AgentConfig()
     provider: ProviderConfig
@@ -60,6 +74,7 @@ class AppConfig(BaseModel):
     skills: SkillsConfig = SkillsConfig()
     logging: LoggingConfig = LoggingConfig()
     langfuse: LangfuseConfig = LangfuseConfig()
+    mcp: MCPConfig = MCPConfig()
 
 
 # ---------------------------------------------------------------------------

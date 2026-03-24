@@ -39,3 +39,19 @@ logging:
 # and LANGFUSE_BASE_URL to your .env file.
 langfuse:
   enabled: true
+
+# --- MCP Servers ---
+# Add any MCP server here and its tools become available to the agent automatically.
+# Two transport types supported:
+#
+#   stdio — spawns a local process (needs the package installed, e.g. via npx/uvx)
+#   sse   — connects to an already-running HTTP MCP server
+#
+# Examples (uncomment and edit to enable):
+#
+mcp:
+  servers:
+    playwright:
+      transport: stdio
+      command: npx
+      args: ["-y", "@playwright/mcp"]

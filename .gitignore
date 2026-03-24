@@ -8,7 +8,8 @@ __pycache__/
 /logs
 # C extensions
 *.so
-memories/user_preferences.txt
+/memories/user_preferences.txt
+/archive
 
 # Distribution / packaging
 .Python
