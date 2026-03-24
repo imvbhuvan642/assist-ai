@@ -5,7 +5,6 @@ __pycache__/
 /.claude
 .mcp.json
 /data
-/memories
 /logs
 # C extensions
 *.so

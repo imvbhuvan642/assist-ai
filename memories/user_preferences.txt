@@ -1,0 +1,7 @@
+# User Preferences
+
+- Name: Rahul
+- Timezone: Asia/Kolkata
+- Communication Style: Direct and technical, no fluff.
+- Preferences: Always verify code after edits. Provide clear, concise explanations. Use skills when applicable for complex tasks.
+- Output Format: Prefer structured output with bullet points and clear headings.
