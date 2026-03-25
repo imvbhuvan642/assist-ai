@@ -15,6 +15,10 @@ from pydantic import BaseModel, field_validator
 class AgentConfig(BaseModel):
     data_dir: str = "./data"
     max_iterations: int = 42
+    max_retries: int = 6
+    timeout: Optional[float] = None
+    timezone: str = "IST"
+    interrupt_on: list[str] = ["send_gmail_message", "delete_calendar_event", "move_calendar_event"]
 
 
 class ProviderConfig(BaseModel):

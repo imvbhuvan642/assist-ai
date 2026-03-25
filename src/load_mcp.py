@@ -38,6 +38,32 @@ def _ensure_background_loop() -> asyncio.AbstractEventLoop:
     return _bg_loop
 
 
+def shutdown_mcp() -> None:
+    """Stop the background MCP event loop and close the client.
+
+    Call this on application exit so stdio subprocesses (e.g. npx) are
+    terminated and asyncio.run() is not left waiting on the background thread.
+    """
+    global _bg_loop, _mcp_client
+
+    async def _close():
+        global _mcp_client
+        if _mcp_client is not None:
+            try:
+                await _mcp_client.aclose()
+            except Exception:
+                pass
+            _mcp_client = None
+
+    if _bg_loop and _bg_loop.is_running():
+        future = asyncio.run_coroutine_threadsafe(_close(), _bg_loop)
+        try:
+            future.result(timeout=5)
+        except Exception:
+            pass
+        _bg_loop.call_soon_threadsafe(_bg_loop.stop)
+
+
 def load_mcp_tools(servers: dict) -> list:
     """Connect to configured MCP servers and return their tools as LangChain tools.
 
@@ -104,6 +130,11 @@ def load_mcp_tools(servers: dict) -> list:
     except TimeoutError:
         logger.warning("MCP server connection timed out after 30s — skipping")
         return []
-    except Exception as exc:
-        logger.warning("Skipping MCP servers: %s", exc)
+    except BaseException as exc:
+        # ExceptionGroup (Python 3.11+) hides the real cause inside sub-exceptions
+        if hasattr(exc, "exceptions"):
+            for sub in exc.exceptions:
+                logger.warning("MCP sub-exception: %s: %s", type(sub).__name__, sub, exc_info=sub)
+        else:
+            logger.warning("Skipping MCP servers: %s", exc, exc_info=True)
         return []

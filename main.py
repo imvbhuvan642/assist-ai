@@ -78,7 +78,10 @@ async def run():
         print(f"[ERROR] Failed to create agent: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    run_config: dict = {"configurable": {"thread_id": args.thread}}
+    run_config: dict = {"configurable": {
+        "thread_id": args.thread,
+        "timezone": config.agent.timezone,
+    }}
 
     if config.langfuse.enabled:
         try:
@@ -111,6 +114,25 @@ async def run():
                 {"messages": [{"role": "user", "content": user_input}]},
                 config=run_config,
             )
+
+            # Handle interrupt_on: agent paused waiting for human approval
+            while result.get("__interrupt__"):
+                interrupt = result["__interrupt__"][0]
+                tool_name = interrupt.value.get("tool_name", "unknown tool")
+                tool_args = interrupt.value.get("tool_input", {})
+                print(f"\n[Approval required] Agent wants to call: {tool_name}")
+                print(f"  Arguments: {tool_args}")
+                try:
+                    approval = input("  Approve? (y/n): ").strip().lower()
+                except (EOFError, KeyboardInterrupt):
+                    approval = "n"
+                approved = approval in {"y", "yes"}
+                logger.info("Interrupt approval for %s: %s", tool_name, approved)
+                result = await agent.ainvoke(
+                    {"resume": approved},
+                    config=run_config,
+                )
+
             response = result["messages"][-1].content
             print(f"\nAssistant: {response}\n")
             logger.info("Assistant [%s]: %s", args.thread, response)
@@ -118,6 +140,14 @@ async def run():
             logger.exception("Agent error on input: %s", user_input)
             print(f"\n[ERROR] {exc}\n", file=sys.stderr)
 
+    from src.load_mcp import shutdown_mcp
+    shutdown_mcp()
+
 
 if __name__ == "__main__":
     asyncio.run(run())
+    # Force-exit: asyncio.run() hangs during cleanup because background threads
+    # (MCP stdio subprocesses, aiosqlite) keep the event loop from closing cleanly.
+    # os._exit() bypasses Python's cleanup and immediately terminates the process.
+    import os
+    os._exit(0)

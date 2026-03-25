@@ -1,6 +1,15 @@
 agent:
   data_dir: "./data"
   max_iterations: 42
+  max_retries: 6         # retries on model/tool failures (exponential backoff)
+  timeout: null          # request timeout in seconds (null = no limit)
+  timezone: "Asia/Kolkata"
+  # Tools that require explicit user confirmation before executing.
+  # The agent will pause and wait for approval before calling these.
+  interrupt_on:
+    - send_gmail_message
+    - delete_calendar_event
+    - move_calendar_event
 
 # --- LLM Provider ---
 # Set `name` to one of: openai | google_genai | anthropic
@@ -34,9 +43,6 @@ skills:
 logging:
   level: INFO
 
-# --- Langfuse Tracing ---
-# Set enabled: true and add LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY,
-# and LANGFUSE_BASE_URL to your .env file.
 langfuse:
   enabled: true
 
@@ -46,9 +52,7 @@ langfuse:
 #
 #   stdio — spawns a local process (needs the package installed, e.g. via npx/uvx)
 #   sse   — connects to an already-running HTTP MCP server
-#
-# Examples (uncomment and edit to enable):
-#
+# --- More MCP Server Examples ---
 # mcp:
 #   servers:
 #     playwright:
