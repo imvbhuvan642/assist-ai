@@ -49,9 +49,9 @@ langfuse:
 #
 # Examples (uncomment and edit to enable):
 #
-mcp:
-  servers:
-    playwright:
-      transport: stdio
-      command: npx
-      args: ["-y", "@playwright/mcp"]
+# mcp:
+#   servers:
+#     playwright:
+#       transport: stdio
+#       command: npx
+#       args: ["-y", "@playwright/mcp"]
