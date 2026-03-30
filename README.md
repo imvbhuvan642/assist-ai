@@ -235,7 +235,7 @@ mcp:
 ### Required Package
 
 ```bash
-pip install langchain-mcp-adapters
+pip install -r requirements.txt
 ```
 
 ### Adding Tools from an MCP Server
