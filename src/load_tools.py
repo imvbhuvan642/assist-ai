@@ -68,4 +68,12 @@ def load_tools(config: AppConfig, model) -> list:
         mcp_tools = load_mcp_tools(config.mcp.servers)
         tools.extend(mcp_tools)
 
+    # Agent creation tool
+    try:
+        from tools.agents import create_agent
+        tools.append(create_agent)
+        logger.info("Tool loaded: create_agent")
+    except Exception as exc:
+        logger.warning("Skipping create_agent: %s", exc)
+
     return tools

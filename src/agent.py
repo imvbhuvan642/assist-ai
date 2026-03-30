@@ -10,6 +10,7 @@ from deepagents import create_deep_agent
 from .load_config import AppConfig, load_config
 from .memory import create_checkpointer, create_backend
 from .load_tools import load_tools
+from .load_agents import load_agents
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _PREFS_FILE = _PROJECT_ROOT / "memories" / "user_preferences.txt"
@@ -118,8 +119,21 @@ async def create_agent(config: AppConfig | None = None):
 
     # ------------------------------------------------------------------
     # Memory: async checkpointer + CompositeBackend
-    # - AsyncSqliteSaver → conversation history persists across restarts
-    # - CompositeBackend → /memories/* and /skills/* on real disk
+    #
+    # Checkpointer (AsyncSqliteSaver):
+    #   Persists conversation history per thread_id across restarts.
+    #
+    # Backend (CompositeBackend):
+    #   /memories/ → FilesystemBackend (real disk, survives restarts)
+    #   /skills/   → FilesystemBackend (real disk, read-only skill discovery)
+    #   everything → StateBackend (ephemeral scratch space per session)
+    #
+    # NOTE: The deepagents docs recommend StoreBackend + InMemoryStore for
+    # /memories/ when deploying to LangSmith (store is auto-provisioned there).
+    # For local use, FilesystemBackend is equivalent and more persistent
+    # (no dependency on a running Postgres/Redis instance).
+    # store= is passed as None here; swap in InMemoryStore() or PostgresStore()
+    # if switching /memories/ to StoreBackend for LangSmith deployment.
     # ------------------------------------------------------------------
     checkpointer = await create_checkpointer()
     backend = create_backend()
@@ -145,6 +159,13 @@ async def create_agent(config: AppConfig | None = None):
     middleware = [dynamic_prefs] if dynamic_prefs is not None else []
 
     # ------------------------------------------------------------------
+    # Subagents — auto-discovered from agents/*/agent.yaml
+    # ------------------------------------------------------------------
+    subagents = load_agents(_PROJECT_ROOT, tools)
+    if subagents:
+        logger.info("Subagents loaded: %d", len(subagents))
+
+    # ------------------------------------------------------------------
     # Agent assembly
     # ------------------------------------------------------------------
     agent_kwargs: dict = dict(
@@ -152,6 +173,7 @@ async def create_agent(config: AppConfig | None = None):
         tools=tools,
         backend=backend,
         skills=["/skills/"] if config.skills.enabled else None,
+        subagents=subagents if subagents else None,
         checkpointer=checkpointer,
         system_prompt=system_prompt,
         middleware=middleware,

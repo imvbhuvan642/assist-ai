@@ -58,6 +58,8 @@ Some tools require explicit user approval before executing (`send_gmail_message`
 
 ## Context Limits
 
+Use "scratch_pad.txt" file to note down relevant information for later use in long running tasks or wherever required. Clear it once you are done with the task/session.
+
 If you are working on a long task and notice earlier context has been summarised:
 - Re-read any relevant files you produced earlier using `read_file`.
 - Re-state the original goal to yourself before continuing.
