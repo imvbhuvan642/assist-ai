@@ -10,7 +10,6 @@ from deepagents import create_deep_agent
 from .load_config import AppConfig, load_config
 from .memory import create_checkpointer, create_backend
 from .load_tools import load_tools
-from .load_skills import create_skill_router, SKILLS_DIR
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -62,47 +61,56 @@ def create_agent(config: AppConfig | None = None):
     # ------------------------------------------------------------------
     # Memory: persistent checkpointer + CompositeBackend
     # - SqliteSaver  → conversation history persists across restarts
-    # - CompositeBackend → /memories/* written to real disk (never lost)
+    # - CompositeBackend → /memories/* and /skills/* on real disk
     # ------------------------------------------------------------------
     checkpointer = create_checkpointer()
     backend = create_backend()
 
     # ------------------------------------------------------------------
-    # Skill-router subagent
-    # Returns a SubAgent dict (name/description/system_prompt/model) that
-    # deepagents uses to build the subagent internally. The main agent calls
-    # it via the task() tool to pick the right skill before executing.
-    # ------------------------------------------------------------------
-    skill_router = None
-    if config.skills.enabled and Path(SKILLS_DIR).exists():
-        skill_router = create_skill_router(SKILLS_DIR, model)
-
-    # ------------------------------------------------------------------
     # System prompt
     # ------------------------------------------------------------------
+    system_prompt_parts = []
+
+    identity_path = _PROJECT_ROOT / "memories" / "identity.md"
+    if identity_path.exists():
+        content = identity_path.read_text(encoding="utf-8").strip()
+        if content:
+            system_prompt_parts.append(content)
+
+    agent_path = _PROJECT_ROOT / "memories" / "agent.md"
+    if agent_path.exists():
+        content = agent_path.read_text(encoding="utf-8").strip()
+        if content:
+            system_prompt_parts.append(content)
+
     system_prompt_path = _PROJECT_ROOT / "prompts" / "agent_system_prompt.md"
-    system_prompt: str | None = None
     if system_prompt_path.exists():
-        system_prompt = system_prompt_path.read_text(encoding="utf-8")
+        content = system_prompt_path.read_text(encoding="utf-8").strip()
+        if content:
+            system_prompt_parts.append(content)
+
+    system_prompt = "\n\n".join(system_prompt_parts) if system_prompt_parts else None
 
     # ------------------------------------------------------------------
     # Assemble agent
+    # The SDK's SkillsMiddleware handles skill discovery and prompt
+    # injection automatically via the skills= parameter. Skills are
+    # read from the /skills/ route in the CompositeBackend.
     # ------------------------------------------------------------------
     agent = create_deep_agent(
         model=model,
         tools=tools,
         backend=backend,
-        skills=[SKILLS_DIR] if config.skills.enabled and Path(SKILLS_DIR).exists() else None,
-        subagents=[skill_router] if skill_router else None,
+        skills=["/skills/"] if config.skills.enabled else None,
         checkpointer=checkpointer,
         system_prompt=system_prompt,
     )
 
     logger.info(
-        "Agent created | provider=%s model=%s tools=%d skills_dir=%s",
+        "Agent created | provider=%s model=%s tools=%d skills=%s",
         config.provider.name,
         config.provider.model,
         len(tools),
-        SKILLS_DIR if config.skills.enabled else "disabled",
+        "enabled" if config.skills.enabled else "disabled",
     )
     return agent

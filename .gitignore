@@ -5,11 +5,10 @@ __pycache__/
 /.claude
 .mcp.json
 /data
-/memories
 /logs
 # C extensions
 *.so
-/creds
+memories/user_preferences.txt
 
 # Distribution / packaging
 .Python
@@ -210,3 +209,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+credentials.json
+token.json
