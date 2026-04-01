@@ -15,6 +15,9 @@ import asyncio
 import sys
 import logging
 import uuid
+from rich.console import Console
+
+console = Console()
 
 from src.load_config import load_config
 from src.logger import setup_logging
@@ -70,9 +73,9 @@ async def run():
         sys.exit(1)
 
     try:
-        print("Loading agent...", flush=True)
-        agent = await create_agent(config)
-        print("Agent ready.\n")
+        with console.status("[bold cyan]Loading agent...", spinner="dots"):
+            agent = await create_agent(config)
+        console.print("[bold green]Agent ready.[/bold green]\n")
     except Exception as exc:
         logger.exception("Failed to create agent")
         print(f"[ERROR] Failed to create agent: {exc}", file=sys.stderr)
@@ -95,7 +98,7 @@ async def run():
 
     while True:
         try:
-            user_input = input("You: ").strip()
+            user_input = console.input("[bold green]You:[/bold green] ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nGoodbye.")
             break
@@ -110,31 +113,33 @@ async def run():
         logger.info("User [%s]: %s", args.thread, user_input)
 
         try:
-            result = await agent.ainvoke(
-                {"messages": [{"role": "user", "content": user_input}]},
-                config=run_config,
-            )
+            with console.status("[bold cyan]Thinking...", spinner="dots"):
+                result = await agent.ainvoke(
+                    {"messages": [{"role": "user", "content": user_input}]},
+                    config=run_config,
+                )
 
             # Handle interrupt_on: agent paused waiting for human approval
             while result.get("__interrupt__"):
                 interrupt = result["__interrupt__"][0]
                 tool_name = interrupt.value.get("tool_name", "unknown tool")
                 tool_args = interrupt.value.get("tool_input", {})
-                print(f"\n[Approval required] Agent wants to call: {tool_name}")
+                console.print(f"\n[bold yellow][Approval required][/bold yellow] Agent wants to call: [cyan]{tool_name}[/cyan]")
                 print(f"  Arguments: {tool_args}")
                 try:
-                    approval = input("  Approve? (y/n): ").strip().lower()
+                    approval = console.input("  [bold white]Approve? (y/n): [/bold white]").strip().lower()
                 except (EOFError, KeyboardInterrupt):
                     approval = "n"
                 approved = approval in {"y", "yes"}
                 logger.info("Interrupt approval for %s: %s", tool_name, approved)
-                result = await agent.ainvoke(
-                    {"resume": approved},
-                    config=run_config,
-                )
+                with console.status("[bold cyan]Executing...", spinner="dots"):
+                    result = await agent.ainvoke(
+                        {"resume": approved},
+                        config=run_config,
+                    )
 
             response = result["messages"][-1].content
-            print(f"\nAssistant: {response}\n")
+            console.print(f"\n[bold blue]Assistant:[/bold blue] {response}\n")
             logger.info("Assistant [%s]: %s", args.thread, response)
         except Exception as exc:
             logger.exception("Agent error on input: %s", user_input)
