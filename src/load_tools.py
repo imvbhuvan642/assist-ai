@@ -49,6 +49,15 @@ def load_tools(config: AppConfig, model) -> list:
     except ImportError as exc:
         logger.warning("Skipping Calendar toolkit (not installed): %s", exc)
 
+    # Meeting tools
+    try:
+        from tools.meeting_tools import get_meeting_tools
+        meeting_tools = get_meeting_tools()
+        tools.extend(meeting_tools)
+        logger.info("Tool loaded: Meeting toolkit (%d tools)", len(meeting_tools))
+    except ImportError as exc:
+        logger.warning("Skipping Meeting toolkit (not installed): %s", exc)
+
     # SQL database tools
     if config.database.url:
         try:
