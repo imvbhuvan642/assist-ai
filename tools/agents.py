@@ -62,6 +62,18 @@ def create_agent(
         "system_prompt": system_prompt,
     }
     if tools:
+        try:
+            from src.load_tools import AVAILABLE_TOOLS
+            if AVAILABLE_TOOLS:
+                invalid_tools = [t for t in tools if t not in AVAILABLE_TOOLS]
+                if invalid_tools:
+                    valid_tools_str = ", ".join(sorted(AVAILABLE_TOOLS.keys()))
+                    return (
+                        f"Error: Invalid tool(s) specified: {', '.join(invalid_tools)}.\n"
+                        f"Available tools are: {valid_tools_str}"
+                    )
+        except ImportError:
+            pass
         agent_data["tools"] = tools
     if model:
         agent_data["model"] = model

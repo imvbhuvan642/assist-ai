@@ -10,6 +10,7 @@ __pycache__/
 *.so
 /memories/user_preferences.txt
 /archive
+/skills/pikastream-video-meeting
 
 # Distribution / packaging
 .Python

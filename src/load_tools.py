@@ -6,6 +6,8 @@ from .load_config import AppConfig
 
 logger = logging.getLogger(__name__)
 
+AVAILABLE_TOOLS: dict[str, object] = {}
+
 
 def load_tools(config: AppConfig, model) -> list:
     """Load and return all available tools based on config.
@@ -75,5 +77,9 @@ def load_tools(config: AppConfig, model) -> list:
         logger.info("Tool loaded: create_agent")
     except Exception as exc:
         logger.warning("Skipping create_agent: %s", exc)
+
+    AVAILABLE_TOOLS.clear()
+    for t in tools:
+        AVAILABLE_TOOLS[t.name] = t
 
     return tools

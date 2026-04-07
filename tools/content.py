@@ -24,7 +24,7 @@ def generate_cover(prompt: str, slug: str) -> str:
         for part in response.parts:
             if part.inline_data is not None:
                 image = part.as_image()
-                output_path = "files_backend" / "blogs" / slug / "hero.png"
+                output_path = Path("files_backend") / "blogs" / slug / "hero.png"
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 image.save(str(output_path))
                 return f"Image saved to {output_path}"
