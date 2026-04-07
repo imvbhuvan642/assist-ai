@@ -33,6 +33,7 @@ langfuse
 
 # Display / formatting
 rich
+markdown
 
 # Scheduling (optional)
 apscheduler
