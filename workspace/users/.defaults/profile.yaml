@@ -1,0 +1,6 @@
+# User Profile — edit directly or use the preferences skill
+name: ""
+persona: "developer"
+timezone: "UTC"
+communication_style: "balanced"    # direct | balanced | detailed
+output_format: "structured"        # structured | prose | minimal

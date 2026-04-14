@@ -79,6 +79,26 @@ def load_tools(config: AppConfig, model) -> list:
         mcp_tools = load_mcp_tools(config.mcp.servers)
         tools.extend(mcp_tools)
 
+    # RAG tools (semantic search over company documents)
+    if config.rag.enabled:
+        try:
+            from tools.rag import get_rag_tools
+            rag_tools = get_rag_tools(config)
+            tools.extend(rag_tools)
+            logger.info("Tool loaded: RAG (%d tools)", len(rag_tools))
+        except Exception as exc:
+            logger.warning("Skipping RAG tools: %s", exc)
+
+    # HRIS tools (leave management, employee data)
+    if config.hris.enabled:
+        try:
+            from tools.hris import get_hris_tools
+            hris_tools = get_hris_tools(config)
+            tools.extend(hris_tools)
+            logger.info("Tool loaded: HRIS (%d tools)", len(hris_tools))
+        except Exception as exc:
+            logger.warning("Skipping HRIS tools: %s", exc)
+
     # Agent creation tool
     try:
         from tools.agents import create_agent
@@ -86,6 +106,15 @@ def load_tools(config: AppConfig, model) -> list:
         logger.info("Tool loaded: create_agent")
     except Exception as exc:
         logger.warning("Skipping create_agent: %s", exc)
+
+    # User configuration tools (profile, skill toggling, approval gates)
+    try:
+        from tools.user_config import get_user_config_tools
+        user_config_tools = get_user_config_tools()
+        tools.extend(user_config_tools)
+        logger.info("Tool loaded: user_config (%d tools)", len(user_config_tools))
+    except Exception as exc:
+        logger.warning("Skipping user_config tools: %s", exc)
 
     AVAILABLE_TOOLS.clear()
     for t in tools:

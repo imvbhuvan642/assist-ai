@@ -44,6 +44,12 @@ def parse_args() -> argparse.Namespace:
         help=f"Conversation thread ID (default: {_THREAD_ID_DEFAULT!r})",
     )
     parser.add_argument(
+        "--user",
+        default=None,
+        metavar="ID",
+        help="User ID for per-user profiles, skill toggles, and isolated memory",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable DEBUG logging",
@@ -62,20 +68,36 @@ async def run():
     print("║         Assist AI — Terminal         ║")
     print("╚══════════════════════════════════════╝")
     print(f"  Thread : {args.thread}")
+    if args.user:
+        print(f"  User   : {args.user}")
     print(f"  Log    : {log_file}")
     print("  Type 'exit' or 'quit' to end.\n")
 
     try:
         config = load_config(args.config)
-        print(f"  Model  : {config.provider.name} / {config.provider.model}\n")
+        print(f"  Model  : {config.provider.name} / {config.provider.model}")
+        print(f"  Persona: {config.persona.active}\n")
     except Exception as exc:
         print(f"[ERROR] Failed to load config: {exc}", file=sys.stderr)
         sys.exit(1)
 
+    # Detect new user → trigger onboarding after agent creation
+    user_id = args.user
+    is_new_user = False
+    if user_id:
+        from pathlib import Path
+        user_profile_dir = Path(config.users.dir).resolve() / user_id
+        is_new_user = not user_profile_dir.exists()
+
     try:
         with console.status("[bold cyan]Loading agent...", spinner="dots"):
-            agent = await create_agent(config)
+            agent = await create_agent(config, user_id=user_id)
         console.print("[bold green]Agent ready.[/bold green]\n")
+        if is_new_user:
+            console.print(
+                "[bold yellow]New user detected![/bold yellow] "
+                "Running onboarding to set up your profile...\n"
+            )
     except Exception as exc:
         logger.exception("Failed to create agent")
         print(f"[ERROR] Failed to create agent: {exc}", file=sys.stderr)
@@ -95,6 +117,21 @@ async def run():
             print("  Tracing: Langfuse enabled\n")
         except ImportError:
             logger.warning("Langfuse enabled in config but 'langfuse' package not installed — skipping")
+
+    # Auto-trigger onboarding for new users
+    if is_new_user:
+        onboarding_msg = "I'm a new user. Please run the onboarding setup for me."
+        logger.info("Auto-triggering onboarding for new user: %s", user_id)
+        try:
+            with console.status("[bold cyan]Setting up your profile...", spinner="dots"):
+                result = await agent.ainvoke(
+                    {"messages": [{"role": "user", "content": onboarding_msg}]},
+                    config=run_config,
+                )
+            response = result["messages"][-1].content
+            console.print(f"\n[bold blue]Assistant:[/bold blue] {response}\n")
+        except Exception as exc:
+            logger.warning("Onboarding auto-trigger failed: %s", exc)
 
     while True:
         try:

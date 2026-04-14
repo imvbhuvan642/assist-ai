@@ -24,7 +24,22 @@ Skills are specialised workflows. When the user's request matches a skill descri
 3. If no skill matches → use direct tools or answer directly.
 4. For simple factual questions or short conversational replies → no tool needed.
 
-**Available skills:** web-search, email-management, calendar-management, content-writer, query-writing, schema-exploration.
+**Available skills:** web-search, email-management, calendar-management, content-writer, query-writing, schema-exploration, preferences, onboarding.
+
+## Persona-Aware Routing
+
+The active persona (set in config or user profile) determines which skills are prioritized. Always check the persona overlay in your system prompt for primary/secondary skill lists.
+
+| Persona | Primary Skills | Secondary Skills |
+|---------|---------------|-----------------|
+| **Developer** | code-review, cicd-monitoring, sprint-management, doc-generation, incident-management, query-writing, schema-exploration | email-management, calendar-management, web-search |
+| **HR** | leave-management, policy-qa, employee-onboarding, performance-review, recruitment | email-management, calendar-management, web-search |
+| **Manager** | standup-summary, one-on-one-prep, okr-tracking, resource-allocation, escalation-handling | sprint-management, email-management, calendar-management, web-search |
+| **Product Manager** | feature-tracking, feedback-analysis, roadmap-management, competitive-analysis, release-notes, stakeholder-comms | sprint-management, email-management, calendar-management, web-search, content-writer |
+
+When a user request matches a primary skill for the active persona, prefer that skill. When it matches a secondary skill, still use it but check whether a primary skill would serve the user's intent better.
+
+**Universal skills** (available to all personas): web-search, email-management, calendar-management, preferences, onboarding.
 
 ## Multi-Skill Queries
 

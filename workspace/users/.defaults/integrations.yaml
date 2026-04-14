@@ -1,0 +1,9 @@
+# Per-user integration settings.
+# These override or supplement the global config for this specific user.
+# Example:
+#   jira:
+#     project_key: "PLAT"
+#   slack:
+#     default_channel: "#engineering"
+#   github:
+#     default_repo: "org/repo"

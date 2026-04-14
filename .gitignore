@@ -11,6 +11,9 @@ __pycache__/
 /memories/user_preferences.txt
 /archive
 /skills/pikastream-video-meeting
+workspace/users/*
+!workspace/users/.defaults/
+!workspace/users/.defaults/**
 
 # Distribution / packaging
 .Python

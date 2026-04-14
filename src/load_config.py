@@ -71,6 +71,31 @@ class MCPConfig(BaseModel):
     servers: dict[str, MCPServerConfig] = {}
 
 
+class PersonaConfig(BaseModel):
+    active: Literal["developer", "hr", "manager", "product_manager"] = "developer"
+
+
+class UsersConfig(BaseModel):
+    dir: str = "./workspace/users"
+    default_persona: Literal["developer", "hr", "manager", "product_manager"] = "developer"
+
+
+class RAGConfig(BaseModel):
+    enabled: bool = False
+    documents_dir: str = "./data/policies"
+    vector_store: Literal["chroma", "faiss"] = "chroma"
+    embedding_model: str = "text-embedding-3-small"
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+
+
+class HRISConfig(BaseModel):
+    enabled: bool = False
+    provider: Literal["bamboohr", "keka", "darwinbox", "mock"] = "mock"
+    base_url: Optional[str] = None
+    api_key: Optional[str] = None
+
+
 class AppConfig(BaseModel):
     agent: AgentConfig = AgentConfig()
     provider: ProviderConfig
@@ -79,6 +104,10 @@ class AppConfig(BaseModel):
     logging: LoggingConfig = LoggingConfig()
     langfuse: LangfuseConfig = LangfuseConfig()
     mcp: MCPConfig = MCPConfig()
+    persona: PersonaConfig = PersonaConfig()
+    users: UsersConfig = UsersConfig()
+    rag: RAGConfig = RAGConfig()
+    hris: HRISConfig = HRISConfig()
 
 
 # ---------------------------------------------------------------------------

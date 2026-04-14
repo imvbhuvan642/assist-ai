@@ -1,0 +1,6 @@
+# Per-user approval gates.
+# Tools listed here require explicit user confirmation before executing.
+# If this file is absent or empty, falls back to global config.yaml interrupt_on.
+- send_gmail_message
+- delete_calendar_event
+- move_calendar_event

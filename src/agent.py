@@ -14,42 +14,117 @@ from .load_agents import load_agents
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _PREFS_FILE = _PROJECT_ROOT / "memories" / "user_preferences.txt"
+_PERSONAS_DIR = _PROJECT_ROOT / "prompts" / "personas"
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 
-def _build_dynamic_prompt_middleware():
-    """Return a @dynamic_prompt middleware that injects user preferences on every call.
+def _build_dynamic_prompt_middleware(user_id: str | None = None):
+    """Return @dynamic_prompt middlewares that inject user context on every call.
 
-    Uses deepagents' dynamic_prompt decorator so the agent sees the *current*
-    contents of user_preferences.txt on every invocation — not a snapshot from
-    startup.  If the decorator is unavailable (older SDK version), falls back to
-    None and preferences are baked into the static system prompt instead.
+    Middleware 1 — user preferences:
+        Reads user_preferences.txt (global or user-scoped) on every invocation
+        so preferences written mid-session take effect immediately.
+
+    Middleware 2 — user profile & enabled skills (only when user_id is set):
+        Reads the user's profile.yaml and enabled_skills.yaml to inject
+        role context and a filtered skill list into the system prompt.
+
+    Returns a list of middleware (may be empty if dynamic_prompt is unavailable).
     """
+    _users_dir = _PROJECT_ROOT / "workspace" / "users"
+
     try:
         from deepagents.middleware import dynamic_prompt, ModelRequest
-
-        @dynamic_prompt
-        def user_preferences(_request: ModelRequest) -> str:
-            if _PREFS_FILE.exists():
-                content = _PREFS_FILE.read_text(encoding="utf-8").strip()
-                if content:
-                    return f"## User Preferences\n{content}"
-            return ""
-
-        return user_preferences
     except Exception:
         logger.debug("dynamic_prompt unavailable — preferences will be in static system prompt")
-        return None
+        return []
+
+    middlewares = []
+
+    # Determine which preferences file to read
+    if user_id:
+        prefs_file = _users_dir / user_id / "memories" / "preferences.txt"
+    else:
+        prefs_file = _PREFS_FILE
+
+    @dynamic_prompt
+    def user_preferences(_request: ModelRequest) -> str:
+        if prefs_file.exists():
+            content = prefs_file.read_text(encoding="utf-8").strip()
+            if content:
+                return f"## User Preferences\n{content}"
+        return ""
+
+    middlewares.append(user_preferences)
+
+    # Also inject the global preferences for user-scoped mode (backward compat)
+    if user_id and _PREFS_FILE.exists():
+        @dynamic_prompt
+        def global_preferences(_request: ModelRequest) -> str:
+            content = _PREFS_FILE.read_text(encoding="utf-8").strip()
+            if content:
+                return f"## Global Preferences\n{content}"
+            return ""
+
+        middlewares.append(global_preferences)
+
+    # User profile & filtered skill list injection
+    if user_id:
+        import yaml as _yaml
+
+        profile_path = _users_dir / user_id / "profile.yaml"
+        enabled_skills_path = _users_dir / user_id / "enabled_skills.yaml"
+
+        @dynamic_prompt
+        def user_profile_context(_request: ModelRequest) -> str:
+            parts = []
+
+            # Profile
+            if profile_path.exists():
+                try:
+                    with open(profile_path, encoding="utf-8") as f:
+                        profile = _yaml.safe_load(f) or {}
+                    if profile:
+                        lines = [f"- **{k}**: {v}" for k, v in profile.items() if v]
+                        if lines:
+                            parts.append("## Active User Profile\n" + "\n".join(lines))
+                except Exception:
+                    pass
+
+            # Enabled skills filter
+            if enabled_skills_path.exists():
+                try:
+                    with open(enabled_skills_path, encoding="utf-8") as f:
+                        data = _yaml.safe_load(f) or {}
+                    enabled = data.get("enabled", []) if isinstance(data, dict) else []
+                    if enabled:
+                        parts.append(
+                            "## Enabled Skills (user filter)\n"
+                            "Only route to these skills for this user:\n"
+                            + "\n".join(f"- {s}" for s in enabled)
+                        )
+                except Exception:
+                    pass
+
+            return "\n\n".join(parts)
+
+        middlewares.append(user_profile_context)
+
+    return middlewares
 
 
-def _build_static_system_prompt(include_prefs: bool = False) -> str | None:
-    """Assemble the static system prompt from identity.md + agent.md.
+def _build_static_system_prompt(
+    include_prefs: bool = False,
+    persona: str = "developer",
+) -> str | None:
+    """Assemble the static system prompt from identity.md + persona overlay + agent.md.
 
-    identity.md  — who the agent is (personality, tone)
-    agent.md     — what the agent can do (capabilities, tool/skill logic)
+    identity.md             — who the agent is (personality, tone)
+    prompts/personas/*.md   — persona-specific overlay (priorities, routing, tone)
+    agent.md                — what the agent can do (capabilities, tool/skill logic)
 
     These are the AGENTS.md equivalent for this project: always-loaded,
     minimal, containing only what must be present on every single call.
@@ -58,15 +133,28 @@ def _build_static_system_prompt(include_prefs: bool = False) -> str | None:
     """
     parts = []
 
-    for path in [
-        _PROJECT_ROOT / "memories" / "identity.md",
-        _PROJECT_ROOT / "memories" / "agent.md",
-    #    _PROJECT_ROOT / "prompts" / "agent_system_prompt.md",
-    ]:
-        if path.exists():
-            content = path.read_text(encoding="utf-8").strip()
-            if content:
-                parts.append(content)
+    # 1. Core identity
+    identity_path = _PROJECT_ROOT / "memories" / "identity.md"
+    if identity_path.exists():
+        content = identity_path.read_text(encoding="utf-8").strip()
+        if content:
+            parts.append(content)
+
+    # 2. Persona overlay — role-specific tone, priorities, skill routing
+    persona_path = _PERSONAS_DIR / f"{persona}.md"
+    if persona_path.exists():
+        content = persona_path.read_text(encoding="utf-8").strip()
+        if content:
+            parts.append(content)
+    else:
+        logger.warning("Persona overlay not found: %s", persona_path)
+
+    # 3. Agent capabilities & routing
+    agent_md_path = _PROJECT_ROOT / "memories" / "agent.md"
+    if agent_md_path.exists():
+        content = agent_md_path.read_text(encoding="utf-8").strip()
+        if content:
+            parts.append(content)
 
     # Fallback: bake prefs into static prompt if dynamic_prompt isn't available
     if include_prefs and _PREFS_FILE.exists():
@@ -77,7 +165,7 @@ def _build_static_system_prompt(include_prefs: bool = False) -> str | None:
     return "\n\n".join(parts) if parts else None
 
 
-async def create_agent(config: AppConfig | None = None):
+async def create_agent(config: AppConfig | None = None, user_id: str | None = None):
     """Create and return the Assist-AI proactive agent.
 
     Parameters
@@ -85,6 +173,9 @@ async def create_agent(config: AppConfig | None = None):
     config:
         Pre-loaded AppConfig. If *None*, ``config.yaml`` in the current
         working directory is loaded automatically.
+    user_id:
+        Optional user identifier. When provided, memory is scoped to the
+        user's profile directory and per-user skill/tool filtering is enabled.
 
     Returns
     -------
@@ -93,6 +184,16 @@ async def create_agent(config: AppConfig | None = None):
     """
     if config is None:
         config = load_config()
+
+    # Set the active user for user_config tools
+    if user_id:
+        try:
+            from tools.user_config import set_active_user, get_user_dir
+            set_active_user(user_id)
+            get_user_dir(user_id)  # ensure profile directory exists
+            logger.info("Active user: %s", user_id)
+        except Exception as exc:
+            logger.warning("Failed to set active user: %s", exc)
 
     # ------------------------------------------------------------------
     # LLM — model-agnostic via langchain.chat_models.init_chat_model
@@ -136,7 +237,7 @@ async def create_agent(config: AppConfig | None = None):
     # if switching /memories/ to StoreBackend for LangSmith deployment.
     # ------------------------------------------------------------------
     checkpointer = await create_checkpointer()
-    backend = create_backend()
+    backend = create_backend(user_id=user_id)
 
     # ------------------------------------------------------------------
     # Context Engineering
@@ -153,10 +254,13 @@ async def create_agent(config: AppConfig | None = None):
     # Runtime context (passed at invoke time, NOT auto-shown to model):
     #   thread_id, timezone → read by tools/middleware that need them.
     # ------------------------------------------------------------------
-    dynamic_prefs = _build_dynamic_prompt_middleware()
-    system_prompt = _build_static_system_prompt(include_prefs=dynamic_prefs is None)
+    dynamic_middlewares = _build_dynamic_prompt_middleware(user_id=user_id)
+    system_prompt = _build_static_system_prompt(
+        include_prefs=len(dynamic_middlewares) == 0,
+        persona=config.persona.active,
+    )
 
-    middleware = [dynamic_prefs] if dynamic_prefs is not None else []
+    middleware = list(dynamic_middlewares)
 
     # ------------------------------------------------------------------
     # Subagents — auto-discovered from agents/*/agent.yaml
@@ -182,11 +286,13 @@ async def create_agent(config: AppConfig | None = None):
     agent = create_deep_agent(**agent_kwargs)
 
     logger.info(
-        "Agent created | provider=%s model=%s tools=%d skills=%s interrupt_on=%s",
+        "Agent created | provider=%s model=%s tools=%d skills=%s persona=%s user=%s interrupt_on=%s",
         config.provider.name,
         config.provider.model,
         len(tools),
         "enabled" if config.skills.enabled else "disabled",
+        config.persona.active,
+        user_id or "global",
         config.agent.interrupt_on,
     )
     return agent

@@ -1,0 +1,4 @@
+# Skills enabled for this user.
+# Empty list = all global skills enabled.
+# Explicit list = only these skills are available.
+enabled: []

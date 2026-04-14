@@ -28,6 +28,10 @@ google-genai          # Cover image generation (Gemini image models)
 langchain-google-community[gmail] # Gmail tools
 langchain-google-community[calendar] # Calendar tools
 
+# RAG (Retrieval-Augmented Generation)
+chromadb              # Local vector store for company document search
+langchain-chroma      # LangChain ChromaDB integration
+
 # Observability
 langfuse
 

@@ -10,6 +10,12 @@ agent:
     - send_gmail_message
     - delete_calendar_event
     - move_calendar_event
+    # Developer: GitHub actions requiring approval
+    - create_pull_request
+    - merge_pull_request
+    - create_issue
+    # HR: sensitive HRIS operations
+    - apply_leave
 
 # --- LLM Provider ---
 # Set `name` to one of: openai | google_genai | anthropic
@@ -34,6 +40,39 @@ provider:
 #   temperature: 0.5
 #   max_tokens: 8192
 
+# --- Persona ---
+# Controls agent tone, skill routing priorities, and default behavior.
+# Options: developer | hr | manager | product_manager
+persona:
+  active: "developer"
+
+# --- User Profiles ---
+# Per-user config directory. Each user gets their own profile, skill toggles,
+# approval gates, and persistent memory under this path.
+users:
+  dir: "./workspace/users"
+  default_persona: "developer"
+
+# --- RAG (Retrieval-Augmented Generation) ---
+# Semantic search over company documents (policies, handbooks, SOPs).
+# Used by the HR persona's policy-qa skill. Requires chromadb + langchain-chroma.
+# rag:
+#   enabled: true
+#   documents_dir: "./data/policies"
+#   vector_store: "chroma"                  # chroma | faiss
+#   embedding_model: "text-embedding-3-small"
+#   chunk_size: 1000
+#   chunk_overlap: 200
+
+# --- HRIS Integration ---
+# Leave management and employee data. Supports BambooHR, Keka, Darwinbox,
+# or a mock provider for development/testing.
+# hris:
+#   enabled: true
+#   provider: "mock"                        # bamboohr | keka | darwinbox | mock
+#   base_url: "${HRIS_BASE_URL}"
+#   api_key: "${HRIS_API_KEY}"
+
 database:
   url: "${DATABASE_URL}"
 
@@ -52,10 +91,65 @@ langfuse:
 #
 #   stdio — spawns a local process (needs the package installed, e.g. via npx/uvx)
 #   sse   — connects to an already-running HTTP MCP server
-# --- More MCP Server Examples ---
+#
+# Uncomment the servers you need and set the required env vars in .env
+
 # mcp:
 #   servers:
-#     playwright:
+#     # --- Developer: GitHub ---
+#     # Provides: PRs, issues, code search, actions/workflows, commits, reviews
+#     # Required env: GITHUB_PERSONAL_ACCESS_TOKEN
+#     github:
 #       transport: stdio
 #       command: npx
-#       args: ["-y", "@playwright/mcp"]
+#       args: ["-y", "@modelcontextprotocol/server-github"]
+#       env:
+#         GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
+#
+#     # --- Developer: Jira (Atlassian) ---
+#     # Provides: issues, sprints, boards, projects, search (JQL)
+#     # Required env: JIRA_HOST, JIRA_EMAIL, JIRA_API_TOKEN
+#     jira:
+#       transport: stdio
+#       command: npx
+#       args: ["-y", "@modelcontextprotocol/server-atlassian"]
+#       env:
+#         JIRA_HOST: "${JIRA_HOST}"
+#         JIRA_EMAIL: "${JIRA_EMAIL}"
+#         JIRA_API_TOKEN: "${JIRA_API_TOKEN}"
+#
+#     # --- Developer: Linear (alternative to Jira) ---
+#     # Provides: issues, projects, cycles, teams
+#     # Required env: LINEAR_API_KEY
+#     # linear:
+#     #   transport: stdio
+#     #   command: npx
+#     #   args: ["-y", "@linear/mcp-server"]
+#     #   env:
+#     #     LINEAR_API_KEY: "${LINEAR_API_KEY}"
+#
+#     # --- Manager/PM: Slack ---
+#     # Provides: channel messages, threads, search, send messages
+#     # Required env: SLACK_BOT_TOKEN
+#     # slack:
+#     #   transport: stdio
+#     #   command: npx
+#     #   args: ["-y", "@anthropic/mcp-server-slack"]
+#     #   env:
+#     #     SLACK_BOT_TOKEN: "${SLACK_BOT_TOKEN}"
+#
+#     # --- Manager/PM: Notion ---
+#     # Provides: pages, databases, search, create/update content
+#     # Required env: NOTION_API_KEY
+#     # notion:
+#     #   transport: stdio
+#     #   command: npx
+#     #   args: ["-y", "@notionhq/mcp-server-notion"]
+#     #   env:
+#     #     NOTION_API_KEY: "${NOTION_API_KEY}"
+#
+#     # --- Browser Automation: Playwright ---
+#     # playwright:
+#     #   transport: stdio
+#     #   command: npx
+#     #   args: ["-y", "@playwright/mcp"]
