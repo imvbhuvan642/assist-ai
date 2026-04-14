@@ -56,13 +56,13 @@ users:
 # --- RAG (Retrieval-Augmented Generation) ---
 # Semantic search over company documents (policies, handbooks, SOPs).
 # Used by the HR persona's policy-qa skill. Requires chromadb + langchain-chroma.
-# rag:
-#   enabled: true
-#   documents_dir: "./data/policies"
-#   vector_store: "chroma"                  # chroma | faiss
-#   embedding_model: "text-embedding-3-small"
-#   chunk_size: 1000
-#   chunk_overlap: 200
+rag:
+  enabled: true
+  documents_dir: "./data/policies"
+  vector_store: "chroma"                  # chroma | faiss
+  embedding_model: "text-embedding-3-small"
+  chunk_size: 1000
+  chunk_overlap: 200
 
 # --- HRIS Integration ---
 # Leave management and employee data. Supports BambooHR, Keka, Darwinbox,

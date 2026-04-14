@@ -2,6 +2,7 @@
 
 import logging
 import shutil
+import threading
 from pathlib import Path
 
 import yaml
@@ -17,6 +18,37 @@ _SKILLS_DIR = _PROJECT_ROOT / "skills"
 # Module-level active user ID — set by the agent factory at startup.
 _active_user_id: str = "default"
 
+# File lock — prevents concurrent tool calls (LangGraph's asyncio.gather)
+# from corrupting YAML files with simultaneous read/write.
+_file_lock = threading.Lock()
+
+# Persona → default enabled skills mapping.
+# When a new user profile is created, only persona-relevant skills are enabled.
+_PERSONA_SKILLS: dict[str, list[str]] = {
+    "developer": [
+        "code-review", "cicd-monitoring", "sprint-management", "doc-generation",
+        "incident-management", "query-writing", "schema-exploration", "release-notes",
+        "web-search", "email-management", "calendar-management",
+        "preferences", "skill-creation",
+    ],
+    "hr": [
+        "leave-management", "policy-qa", "employee-onboarding", "performance-review",
+        "recruitment", "web-search", "email-management", "calendar-management",
+        "preferences", "skill-creation",
+    ],
+    "manager": [
+        "standup-summary", "one-on-one-prep", "okr-tracking", "resource-allocation",
+        "escalation-handling", "sprint-management", "web-search", "email-management",
+        "calendar-management", "preferences", "skill-creation",
+    ],
+    "product_manager": [
+        "feature-tracking", "feedback-analysis", "roadmap-management",
+        "competitive-analysis", "release-notes", "stakeholder-comms",
+        "sprint-management", "web-search", "email-management", "calendar-management",
+        "content-writer", "preferences", "skill-creation",
+    ],
+}
+
 
 def set_active_user(user_id: str) -> None:
     """Set the active user ID for all user_config tools."""
@@ -24,21 +56,36 @@ def set_active_user(user_id: str) -> None:
     _active_user_id = user_id
 
 
-def get_user_dir(user_id: str | None = None) -> Path:
-    """Return the profile directory for a user, creating from defaults if needed."""
+def get_user_dir(user_id: str | None = None, persona: str = "developer") -> Path:
+    """Return the profile directory for a user, creating from defaults if needed.
+
+    When creating a new profile, ``persona`` determines which skills are
+    pre-enabled.  Only skills relevant to the persona are activated.
+    """
     uid = user_id or _active_user_id
     user_dir = _USERS_DIR / uid
     if not user_dir.exists():
         user_dir.mkdir(parents=True, exist_ok=True)
-        # Copy default templates
+        # Copy default templates (except enabled_skills — we build that below)
         for default_file in _DEFAULTS_DIR.glob("*.yaml"):
-            shutil.copy2(default_file, user_dir / default_file.name)
+            if default_file.name != "enabled_skills.yaml":
+                shutil.copy2(default_file, user_dir / default_file.name)
+        # Write persona-aware enabled skills
+        default_skills = _PERSONA_SKILLS.get(persona, _PERSONA_SKILLS["developer"])
+        _write_yaml(user_dir / "enabled_skills.yaml", {"enabled": sorted(default_skills)})
+        # Set persona in profile
+        profile_path = user_dir / "profile.yaml"
+        if profile_path.exists():
+            profile = _read_yaml(profile_path)
+            profile["persona"] = persona
+            _write_yaml(profile_path, profile)
         # Create memories subdirectory
         (user_dir / "memories").mkdir(exist_ok=True)
         (user_dir / "memories" / "preferences.txt").write_text(
             "# User Preferences\n", encoding="utf-8"
         )
-        logger.info("Created new user profile directory: %s", user_dir)
+        logger.info("Created new user profile directory: %s (persona=%s, skills=%d)",
+                     user_dir, persona, len(default_skills))
     return user_dir
 
 
@@ -52,9 +99,11 @@ def _read_yaml(path: Path) -> dict | list:
 
 
 def _write_yaml(path: Path, data) -> None:
-    """Write data to a YAML file."""
-    with open(path, "w", encoding="utf-8") as f:
+    """Write data to a YAML file atomically (write to temp, then rename)."""
+    tmp_path = path.with_suffix(".yaml.tmp")
+    with open(tmp_path, "w", encoding="utf-8") as f:
         yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+    tmp_path.replace(path)
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +130,9 @@ def get_user_profile() -> str:
 def update_user_profile(key: str, value: str) -> str:
     """Update a specific field in the user's profile.
 
+    When the persona is changed, the enabled skills are automatically updated to
+    match the new persona's defaults.
+
     Args:
         key: The profile field to update (name, persona, timezone, communication_style, output_format).
         value: The new value for the field.
@@ -95,10 +147,22 @@ def update_user_profile(key: str, value: str) -> str:
 
     user_dir = get_user_dir()
     profile_path = user_dir / "profile.yaml"
-    profile = _read_yaml(profile_path)
-    profile[key] = value
-    _write_yaml(profile_path, profile)
-    return f"Updated profile: {key} = {value}"
+    with _file_lock:
+        profile = _read_yaml(profile_path)
+        profile[key] = value
+        _write_yaml(profile_path, profile)
+
+    result = f"Updated profile: {key} = {value}"
+
+    # When persona changes, auto-update enabled skills to match the new persona
+    if key == "persona":
+        new_skills = _PERSONA_SKILLS.get(value, _PERSONA_SKILLS["developer"])
+        skills_path = user_dir / "enabled_skills.yaml"
+        with _file_lock:
+            _write_yaml(skills_path, {"enabled": sorted(new_skills)})
+        result += f"\nEnabled skills updated to {value} defaults ({len(new_skills)} skills)."
+
+    return result
 
 
 @tool
@@ -138,37 +202,58 @@ def list_available_skills() -> str:
 
 
 @tool
+def set_enabled_skills(skill_names: list[str]) -> str:
+    """Set the exact list of enabled skills for the current user, replacing any previous list.
+
+    This is the preferred tool for bulk skill changes (e.g., during onboarding or
+    when switching personas). Use this instead of calling enable_skill/disable_skill
+    multiple times.
+
+    Args:
+        skill_names: The complete list of skill names to enable. All other skills will be disabled.
+    """
+    # Validate all skill names
+    invalid = [s for s in skill_names if not (_SKILLS_DIR / s / "SKILL.md").exists()]
+    if invalid:
+        return f"Unknown skills: {', '.join(invalid)}. Use list_available_skills to see valid names."
+
+    user_dir = get_user_dir()
+    path = user_dir / "enabled_skills.yaml"
+    with _file_lock:
+        _write_yaml(path, {"enabled": sorted(skill_names)})
+    return f"Enabled {len(skill_names)} skills: {', '.join(sorted(skill_names))}"
+
+
+@tool
 def enable_skill(skill_name: str) -> str:
-    """Enable a skill for the current user.
+    """Enable a single skill for the current user.
 
     Args:
         skill_name: The name of the skill to enable (must match a directory in skills/).
     """
-    # Verify skill exists
     if not (_SKILLS_DIR / skill_name / "SKILL.md").exists():
         return f"Skill '{skill_name}' not found. Use list_available_skills to see available skills."
 
     user_dir = get_user_dir()
     path = user_dir / "enabled_skills.yaml"
-    data = _read_yaml(path)
-    if not isinstance(data, dict):
-        data = {"enabled": []}
-    enabled = data.get("enabled", [])
-    if not enabled:
-        # Currently all-enabled mode — switching to explicit list means we need to
-        # add ALL skills first, then this is already included.
-        return f"All skills are currently enabled (no filter active). '{skill_name}' is already available."
-    if skill_name in enabled:
-        return f"Skill '{skill_name}' is already enabled."
-    enabled.append(skill_name)
-    data["enabled"] = sorted(enabled)
-    _write_yaml(path, data)
+    with _file_lock:
+        data = _read_yaml(path)
+        if not isinstance(data, dict):
+            data = {"enabled": []}
+        enabled = data.get("enabled", [])
+        if not enabled:
+            return f"All skills are currently enabled (no filter active). '{skill_name}' is already available."
+        if skill_name in enabled:
+            return f"Skill '{skill_name}' is already enabled."
+        enabled.append(skill_name)
+        data["enabled"] = sorted(enabled)
+        _write_yaml(path, data)
     return f"Enabled skill: {skill_name}"
 
 
 @tool
 def disable_skill(skill_name: str) -> str:
-    """Disable a skill for the current user. The skill remains available globally but won't be routed to for this user.
+    """Disable a single skill for the current user. For bulk changes, prefer set_enabled_skills.
 
     Args:
         skill_name: The name of the skill to disable.
@@ -178,26 +263,27 @@ def disable_skill(skill_name: str) -> str:
 
     user_dir = get_user_dir()
     path = user_dir / "enabled_skills.yaml"
-    data = _read_yaml(path)
-    if not isinstance(data, dict):
-        data = {"enabled": []}
-    enabled = data.get("enabled", [])
+    with _file_lock:
+        data = _read_yaml(path)
+        if not isinstance(data, dict):
+            data = {"enabled": []}
+        enabled = data.get("enabled", [])
 
-    if not enabled:
-        # Switching from all-enabled to explicit list: populate with all skills minus the disabled one
-        all_skills = [
-            d.name for d in sorted(_SKILLS_DIR.iterdir())
-            if (d / "SKILL.md").exists() and d.name != skill_name
-        ]
-        data["enabled"] = all_skills
+        if not enabled:
+            # Switching from all-enabled to explicit list: populate with all skills minus the disabled one
+            all_skills = [
+                d.name for d in sorted(_SKILLS_DIR.iterdir())
+                if (d / "SKILL.md").exists() and d.name != skill_name
+            ]
+            data["enabled"] = all_skills
+            _write_yaml(path, data)
+            return f"Disabled skill: {skill_name}. Switched to explicit skill list."
+
+        if skill_name not in enabled:
+            return f"Skill '{skill_name}' is already disabled."
+        enabled.remove(skill_name)
+        data["enabled"] = enabled
         _write_yaml(path, data)
-        return f"Disabled skill: {skill_name}. Switched to explicit skill list."
-
-    if skill_name not in enabled:
-        return f"Skill '{skill_name}' is already disabled."
-    enabled.remove(skill_name)
-    data["enabled"] = enabled
-    _write_yaml(path, data)
     return f"Disabled skill: {skill_name}"
 
 
@@ -205,7 +291,8 @@ def disable_skill(skill_name: str) -> str:
 def list_enabled_skills() -> str:
     """Show which skills are currently enabled for the user."""
     user_dir = get_user_dir()
-    data = _read_yaml(user_dir / "enabled_skills.yaml")
+    with _file_lock:
+        data = _read_yaml(user_dir / "enabled_skills.yaml")
     enabled = data.get("enabled", []) if isinstance(data, dict) else []
     if not enabled:
         return "All skills are enabled (no filter active)."
@@ -246,6 +333,7 @@ def get_user_config_tools() -> list:
         get_user_profile,
         update_user_profile,
         list_available_skills,
+        set_enabled_skills,
         enable_skill,
         disable_skill,
         list_enabled_skills,

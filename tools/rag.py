@@ -40,11 +40,8 @@ def _init_vectorstore(documents_dir: str, embedding_model: str, chunk_size: int,
         return
 
     # Load documents
-    from langchain_community.document_loaders import (
-        TextLoader,
-        UnstructuredMarkdownLoader,
-    )
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
+    from langchain_community.document_loaders import TextLoader
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
 
     documents = []
     for doc_file in doc_files:

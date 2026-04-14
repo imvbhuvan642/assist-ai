@@ -190,7 +190,7 @@ async def create_agent(config: AppConfig | None = None, user_id: str | None = No
         try:
             from tools.user_config import set_active_user, get_user_dir
             set_active_user(user_id)
-            get_user_dir(user_id)  # ensure profile directory exists
+            get_user_dir(user_id, persona=config.persona.active)  # ensure profile directory exists
             logger.info("Active user: %s", user_id)
         except Exception as exc:
             logger.warning("Failed to set active user: %s", exc)

@@ -29,6 +29,7 @@ langchain-google-community[gmail] # Gmail tools
 langchain-google-community[calendar] # Calendar tools
 
 # RAG (Retrieval-Augmented Generation)
+langchain-text-splitters  # Document chunking for RAG
 chromadb              # Local vector store for company document search
 langchain-chroma      # LangChain ChromaDB integration
 
