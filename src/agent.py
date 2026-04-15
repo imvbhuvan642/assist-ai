@@ -265,7 +265,7 @@ async def create_agent(config: AppConfig | None = None, user_id: str | None = No
     # ------------------------------------------------------------------
     # Subagents — auto-discovered from agents/*/agent.yaml
     # ------------------------------------------------------------------
-    subagents = load_agents(_PROJECT_ROOT, tools)
+    subagents = load_agents(_PROJECT_ROOT, tools, persona=config.persona.active)
     if subagents:
         logger.info("Subagents loaded: %d", len(subagents))
 

@@ -76,7 +76,6 @@ async def run():
     try:
         config = load_config(args.config)
         print(f"  Model  : {config.provider.name} / {config.provider.model}")
-        print(f"  Persona: {config.persona.active}\n")
     except Exception as exc:
         print(f"[ERROR] Failed to load config: {exc}", file=sys.stderr)
         sys.exit(1)
@@ -84,10 +83,26 @@ async def run():
     # Detect new user → trigger onboarding after agent creation
     user_id = args.user
     is_new_user = False
+    active_persona = config.persona.active  # default from config.yaml
     if user_id:
         from pathlib import Path
+        import yaml as _yaml
         user_profile_dir = Path(config.users.dir).resolve() / user_id
         is_new_user = not user_profile_dir.exists()
+        # Read persona from existing user profile if available
+        if not is_new_user:
+            profile_path = user_profile_dir / "profile.yaml"
+            if profile_path.exists():
+                try:
+                    with open(profile_path, encoding="utf-8") as f:
+                        profile = _yaml.safe_load(f) or {}
+                    active_persona = profile.get("persona", active_persona)
+                except Exception:
+                    pass
+    print(f"  Persona: {active_persona}\n")
+
+    # Override config persona with user's actual persona so the system prompt matches
+    config.persona.active = active_persona
 
     try:
         with console.status("[bold cyan]Loading agent...", spinner="dots"):

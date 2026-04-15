@@ -48,12 +48,18 @@ Call `update_user_profile("communication_style", choice)`.
 
 ### Step 4: Skill Overview
 
-Call `list_available_skills()` to show what's available.
+**IMPORTANT**: You MUST call `list_enabled_skills()` first to show the skills that are already enabled for the user's persona. Then call `list_available_skills()` to get the full catalog.
 
-Explain:
-> These are all enabled by default. You can disable any skill you don't need by saying "disable [skill-name]". You can always re-enable them later.
+Present the results clearly:
+> Based on your **{persona}** role, I've enabled these skills for you:
+> {list from list_enabled_skills}
+>
+> There are also other skills available that you could add:
+> {list skills from list_available_skills that are currently disabled}
+>
+> Would you like to **add** any of those, **remove** any of your current ones, or **keep the current set**?
 
-If the user wants to disable some, call `disable_skill(name)` for each.
+If the user wants to change skills, use `set_enabled_skills(skill_names)` with the full updated list (this is a single batch call — do NOT call enable_skill/disable_skill multiple times).
 
 ### Step 5: Approval Gates
 

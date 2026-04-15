@@ -48,8 +48,12 @@ def _init_vectorstore(documents_dir: str, embedding_model: str, chunk_size: int,
         try:
             if doc_file.suffix.lower() in {".txt", ".md"}:
                 loader = TextLoader(str(doc_file), encoding="utf-8")
+            elif doc_file.suffix.lower() == ".pdf":
+                # PyPDFLoader is pure Python — no poppler/tesseract needed
+                from langchain_community.document_loaders import PyPDFLoader
+                loader = PyPDFLoader(str(doc_file))
             else:
-                # For PDF/DOCX, try UnstructuredFileLoader
+                # For DOCX and other formats, fall back to Unstructured
                 from langchain_community.document_loaders import UnstructuredFileLoader
                 loader = UnstructuredFileLoader(str(doc_file))
             loaded = loader.load()

@@ -12,7 +12,6 @@
 
 ### MCP Tools (when connected)
 - **Playwright** — browser automation (navigate, click, type, screenshot, scrape). Use for web tasks that need a real browser session.
-- **Google Drive** — file access when the Drive MCP server is running.
 
 ## Skill Routing
 

@@ -8,7 +8,7 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
-def load_agents(project_root: Path, all_tools: list) -> list[dict]:
+def load_agents(project_root: Path, all_tools: list, persona: str | None = None) -> list[dict]:
     """Scan agents/*/agent.yaml and return a list of SubAgent dicts.
 
     Each returned dict has the keys expected by create_deep_agent(subagents=...):
@@ -23,6 +23,10 @@ def load_agents(project_root: Path, all_tools: list) -> list[dict]:
     all_tools:
         Full list of loaded LangChain tools from load_tools().
         Used to resolve tool names declared in agent.yaml → actual tool objects.
+    persona:
+        Active persona (e.g. ``"developer"``, ``"hr"``).  When set, only
+        subagents whose ``personas`` list includes this value (or that have
+        no ``personas`` field at all) are loaded.
     """
     agents_dir = project_root / "agents"
     if not agents_dir.exists():
@@ -43,6 +47,12 @@ def load_agents(project_root: Path, all_tools: list) -> list[dict]:
 
             if not name or not description or not system_prompt:
                 logger.warning("Skipping %s — missing required fields (name/description/system_prompt)", yaml_path)
+                continue
+
+            # Persona filter: skip agents not meant for the active persona
+            agent_personas: list[str] = data.get("personas") or []
+            if persona and agent_personas and persona not in agent_personas:
+                logger.info("Skipping subagent '%s' — not in persona '%s' (requires %s)", name, persona, agent_personas)
                 continue
 
             # Resolve tools: names → objects; missing names are warned and skipped

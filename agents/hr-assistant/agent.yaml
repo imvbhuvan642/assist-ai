@@ -1,4 +1,5 @@
 name: hr-assistant
+personas: [hr]
 description: "Specialist agent for HR workflows — leave management, policy Q&A, employee onboarding, performance reviews, and recruitment. Delegate to this agent for complex HR tasks that require cross-referencing HRIS data, company policies, and communication tools."
 system_prompt: |
   You are the `hr-assistant` agent: an experienced HR professional with deep knowledge of

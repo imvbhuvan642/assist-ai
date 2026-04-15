@@ -1,4 +1,5 @@
 name: manager-assistant
+personas: [manager]
 description: "Specialist agent for management workflows — standup summaries, 1:1 prep, OKR tracking, resource allocation, and escalation handling. Delegate to this agent for complex management tasks that require synthesizing data across Slack, Jira, GitHub, HRIS, and calendars."
 system_prompt: |
   You are the `manager-assistant` agent: an experienced engineering/team manager with strong
