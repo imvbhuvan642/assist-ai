@@ -6,8 +6,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def get_calendar_tools() -> list:
-    """Initialize and return the Google Calendar API tools from langchain-google-community."""
+def get_calendar_tools(user_id: str | None = None) -> list:
+    """Initialize and return the Google Calendar API tools from langchain-google-community.
+
+    When ``user_id`` is provided, uses the user's per-user token.  Returns an
+    empty list if the user hasn't connected Google services yet.
+    """
     try:
         from langchain_google_community.calendar.toolkit import CalendarToolkit
         from langchain_google_community._utils import get_google_credentials
@@ -18,16 +22,22 @@ def get_calendar_tools() -> list:
         )
         return []
 
-    token_file = os.environ.get("GOOGLE_TOKEN", "token.json")
-    credentials_file = os.environ.get("GOOGLE_CREDENTIALS", "credentials.json")
+    from tools.google_auth import get_user_token_path, get_shared_credentials_file
 
-    # If the credentials file doesn't exist and there's no cached token, we can't proceed
-    if not os.path.exists(credentials_file) and not os.path.exists(token_file):
-        raise FileNotFoundError(
-            f"Google Calendar credentials not found at {credentials_file}. "
-            "Please download your credentials.json from Google Cloud Console "
-            "and place it in the project root."
+    token_file = str(get_user_token_path(user_id))
+    credentials_file = str(get_shared_credentials_file())
+
+    if not os.path.exists(token_file):
+        logger.info(
+            "Calendar tools: no token at %s — user must run connect_google_services first.",
+            token_file,
         )
+        return []
+    if not os.path.exists(credentials_file):
+        logger.warning(
+            "Calendar credentials file not found at %s.", credentials_file
+        )
+        return []
 
     try:
         # Build credentials with calendar scope — reuses the same OAuth flow as Gmail.

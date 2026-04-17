@@ -312,6 +312,11 @@ async def create_agent(config: AppConfig | None = None, user_id: str | None = No
             set_agents_user(user_id)
         except Exception as exc:
             logger.warning("Failed to set active user (agents): %s", exc)
+        try:
+            from tools.google_auth import set_active_user as set_google_auth_user
+            set_google_auth_user(user_id)
+        except Exception as exc:
+            logger.warning("Failed to set active user (google_auth): %s", exc)
         logger.info("Active user: %s", user_id)
 
     # ------------------------------------------------------------------
@@ -334,7 +339,7 @@ async def create_agent(config: AppConfig | None = None, user_id: str | None = No
     # ------------------------------------------------------------------
     # Tools
     # ------------------------------------------------------------------
-    tools = load_tools(config, model)
+    tools = load_tools(config, model, user_id=user_id)
     logger.info("Tools loaded: %d", len(tools))
 
     # ------------------------------------------------------------------

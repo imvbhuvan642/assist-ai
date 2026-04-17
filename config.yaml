@@ -101,62 +101,62 @@ langsmith:
 #
 # Uncomment the servers you need and set the required env vars in .env
 
-mcp:
-  servers:
-    # --- Developer: GitHub ---
-    # Provides: PRs, issues, code search, actions/workflows, commits, reviews
-    # Required env: GITHUB_PERSONAL_ACCESS_TOKEN
-    # github:
-    #   transport: stdio
-    #   command: npx
-    #   args: ["-y", "@modelcontextprotocol/server-github"]
-    #   env:
-    #     GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
+# mcp:
+#   servers:
+#     # --- Developer: GitHub ---
+#     # Provides: PRs, issues, code search, actions/workflows, commits, reviews
+#     # Required env: GITHUB_PERSONAL_ACCESS_TOKEN
+#     # github:
+#     #   transport: stdio
+#     #   command: npx
+#     #   args: ["-y", "@modelcontextprotocol/server-github"]
+#     #   env:
+#     #     GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
 
-    # --- Developer: Jira (Atlassian) ---
-    # Provides: issues, sprints, boards, projects, search (JQL)
-    # Required env: JIRA_HOST, JIRA_EMAIL, JIRA_API_TOKEN
-    # jira:
-    #   transport: stdio
-    #   command: npx
-    #   args: ["-y", "@modelcontextprotocol/server-atlassian"]
-    #   env:
-    #     JIRA_HOST: "${JIRA_HOST}"
-    #     JIRA_EMAIL: "${JIRA_EMAIL}"
-    #     JIRA_API_TOKEN: "${JIRA_API_TOKEN}"
+#     # --- Developer: Jira (Atlassian) ---
+#     # Provides: issues, sprints, boards, projects, search (JQL)
+#     # Required env: JIRA_HOST, JIRA_EMAIL, JIRA_API_TOKEN
+#     # jira:
+#     #   transport: stdio
+#     #   command: npx
+#     #   args: ["-y", "@modelcontextprotocol/server-atlassian"]
+#     #   env:
+#     #     JIRA_HOST: "${JIRA_HOST}"
+#     #     JIRA_EMAIL: "${JIRA_EMAIL}"
+#     #     JIRA_API_TOKEN: "${JIRA_API_TOKEN}"
 
-    # --- Developer: Linear (alternative to Jira) ---
-    # Provides: issues, projects, cycles, teams
-    # Required env: LINEAR_API_KEY
-    # linear:
-    #   transport: stdio
-    #   command: npx
-    #   args: ["-y", "@linear/mcp-server"]
-    #   env:
-    #     LINEAR_API_KEY: "${LINEAR_API_KEY}"
+#     # --- Developer: Linear (alternative to Jira) ---
+#     # Provides: issues, projects, cycles, teams
+#     # Required env: LINEAR_API_KEY
+#     # linear:
+#     #   transport: stdio
+#     #   command: npx
+#     #   args: ["-y", "@linear/mcp-server"]
+#     #   env:
+#     #     LINEAR_API_KEY: "${LINEAR_API_KEY}"
 
-    # --- Manager/PM: Slack ---
-    # Provides: channel messages, threads, search, send messages
-    # Required env: SLACK_BOT_TOKEN
-    # slack:
-    #   transport: stdio
-    #   command: npx
-    #   args: ["-y", "@anthropic/mcp-server-slack"]
-    #   env:
-    #     SLACK_BOT_TOKEN: "${SLACK_BOT_TOKEN}"
+#     # --- Manager/PM: Slack ---
+#     # Provides: channel messages, threads, search, send messages
+#     # Required env: SLACK_BOT_TOKEN
+#     # slack:
+#     #   transport: stdio
+#     #   command: npx
+#     #   args: ["-y", "@anthropic/mcp-server-slack"]
+#     #   env:
+#     #     SLACK_BOT_TOKEN: "${SLACK_BOT_TOKEN}"
 
-    # --- Manager/PM: Notion ---
-    # Provides: pages, databases, search, create/update content
-    # Required env: NOTION_API_KEY
-    # notion:
-    #   transport: stdio
-    #   command: npx
-    #   args: ["-y", "@notionhq/mcp-server-notion"]
-    #   env:
-    #     NOTION_API_KEY: "${NOTION_API_KEY}"
+#     # --- Manager/PM: Notion ---
+#     # Provides: pages, databases, search, create/update content
+#     # Required env: NOTION_API_KEY
+#     # notion:
+#     #   transport: stdio
+#     #   command: npx
+#     #   args: ["-y", "@notionhq/mcp-server-notion"]
+#     #   env:
+#     #     NOTION_API_KEY: "${NOTION_API_KEY}"
 
-    # --- Browser Automation: Playwright ---
-    playwright:
-      transport: stdio
-      command: npx
-      args: ["-y", "@playwright/mcp"]
+#     # --- Browser Automation: Playwright ---
+#     playwright:
+#       transport: stdio
+#       command: npx
+#       args: ["-y", "@playwright/mcp"]

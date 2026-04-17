@@ -5,8 +5,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def get_gmail_tools() -> list:
-    """Initialize and return the Gmail API tools from langchain-google-community."""
+def get_gmail_tools(user_id: str | None = None) -> list:
+    """Initialize and return the Gmail API tools from langchain-google-community.
+
+    When ``user_id`` is provided, the user's per-user token is used
+    (``workspace/users/<id>/creds/google-token.json``).  Otherwise falls
+    back to the global token path.  Gracefully returns an empty list when
+    no token is available — the user hasn't connected Google services yet.
+    """
     try:
         from langchain_google_community.gmail.toolkit import GmailToolkit
         from langchain_google_community.gmail.utils import build_resource_service, get_gmail_credentials
@@ -17,16 +23,28 @@ def get_gmail_tools() -> list:
         )
         return []
 
-    credentials_file = os.environ.get("GOOGLE_CREDENTIALS", "credentials.json")
-    token_file = os.environ.get("GOOGLE_TOKEN", "token.json")
+    from tools.google_auth import get_user_token_path, get_shared_credentials_file
 
-    # If the credentials file doesn't exist, we can't initialize the Gmail toolkit
-    if not os.path.exists(credentials_file) and not os.path.exists(token_file):
-        raise FileNotFoundError(
-            f"Gmail credentials not found at {credentials_file}. "
-            "Please download your credentials.json from Google Cloud Console "
-            "and place it in the project root."
+    credentials_file = str(get_shared_credentials_file())
+    token_file = str(get_user_token_path(user_id))
+
+    # No token yet → user hasn't connected Google services. Return empty list
+    # (no Gmail tools available until they run connect_google_services).
+    if not os.path.exists(token_file):
+        logger.info(
+            "Gmail tools: no token at %s — user must run connect_google_services first.",
+            token_file,
         )
+        return []
+
+    # Credentials file is required to refresh tokens
+    if not os.path.exists(credentials_file):
+        logger.warning(
+            "Gmail credentials file not found at %s. "
+            "Cannot initialize Gmail toolkit without shared OAuth app credentials.",
+            credentials_file,
+        )
+        return []
 
     try:
         # This will trigger the OAuth flow if token_file doesn't exist or is invalid

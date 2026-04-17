@@ -9,11 +9,16 @@ logger = logging.getLogger(__name__)
 AVAILABLE_TOOLS: dict[str, object] = {}
 
 
-def load_tools(config: AppConfig, model) -> list:
+def load_tools(config: AppConfig, model, user_id: str | None = None) -> list:
     """Load and return all available tools based on config.
 
     Each tool is loaded gracefully — missing API keys or packages log a warning
     and are skipped rather than crashing startup.
+
+    When ``user_id`` is set, Gmail/Calendar/Meeting tools use that user's
+    personal Google OAuth token.  If the user hasn't connected Google
+    services yet, those tools simply load as zero tools — the user can run
+    ``connect_google_services`` to authorize, then restart the session.
     """
     tools: list = []
 
@@ -33,32 +38,41 @@ def load_tools(config: AppConfig, model) -> list:
     except Exception as exc:
         logger.warning("Skipping generate_cover: %s", exc)
 
-    # Gmail tools
+    # Gmail tools (per-user token)
     try:
         from tools.gmail import get_gmail_tools
-        gmail_tools = get_gmail_tools()
+        gmail_tools = get_gmail_tools(user_id=user_id)
         tools.extend(gmail_tools)
         logger.info("Tool loaded: Gmail toolkit (%d tools)", len(gmail_tools))
     except ImportError as exc:
         logger.warning("Skipping Gmail toolkit (not installed): %s", exc)
 
-    # Calendar tools
+    # Calendar tools (per-user token)
     try:
         from tools.calendar_tools import get_calendar_tools
-        calendar_tools = get_calendar_tools()
+        calendar_tools = get_calendar_tools(user_id=user_id)
         tools.extend(calendar_tools)
         logger.info("Tool loaded: Calendar toolkit (%d tools)", len(calendar_tools))
     except ImportError as exc:
         logger.warning("Skipping Calendar toolkit (not installed): %s", exc)
 
-    # Meeting tools
+    # Meeting tools (per-user token)
     try:
         from tools.meeting_tools import get_meeting_tools
-        meeting_tools = get_meeting_tools()
+        meeting_tools = get_meeting_tools(user_id=user_id)
         tools.extend(meeting_tools)
         logger.info("Tool loaded: Meeting toolkit (%d tools)", len(meeting_tools))
     except ImportError as exc:
         logger.warning("Skipping Meeting toolkit (not installed): %s", exc)
+
+    # Google auth tools — always available so users can connect/disconnect/check
+    try:
+        from tools.google_auth import get_google_auth_tools
+        google_auth_tools = get_google_auth_tools()
+        tools.extend(google_auth_tools)
+        logger.info("Tool loaded: Google auth (%d tools)", len(google_auth_tools))
+    except Exception as exc:
+        logger.warning("Skipping Google auth tools: %s", exc)
 
     # SQL database tools
     if config.database.url:

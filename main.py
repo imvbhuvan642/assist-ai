@@ -208,7 +208,7 @@ async def run():
 
             response = result["messages"][-1].content
             console.print(f"\n[bold blue]Assistant:[/bold blue] {response}\n")
-            logger.info("Assistant [%s]: %s", effective_thread_id, response)
+            logger.info("Assistant [%s]: %s", args.thread, response)
         except Exception as exc:
             logger.exception("Agent error on input: %s", user_input)
             print(f"\n[ERROR] {exc}\n", file=sys.stderr)

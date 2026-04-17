@@ -6,8 +6,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def get_meeting_tools() -> list:
-    """Initialize and return meeting management tools (Google Meet via Calendar API)."""
+def get_meeting_tools(user_id: str | None = None) -> list:
+    """Initialize and return meeting management tools (Google Meet via Calendar API).
+
+    Uses the user's per-user Google token when ``user_id`` is set.  Returns
+    an empty list if the user hasn't connected Google services yet.
+    """
     try:
         from langchain_google_community._utils import get_google_credentials
         from langchain_google_community.calendar.utils import build_calendar_service
@@ -18,10 +22,18 @@ def get_meeting_tools() -> list:
         )
         return []
 
-    token_file = os.environ.get("GOOGLE_TOKEN", "token.json")
-    credentials_file = os.environ.get("GOOGLE_CREDENTIALS", "credentials.json")
+    from tools.google_auth import get_user_token_path, get_shared_credentials_file
 
-    if not os.path.exists(credentials_file) and not os.path.exists(token_file):
+    token_file = str(get_user_token_path(user_id))
+    credentials_file = str(get_shared_credentials_file())
+
+    if not os.path.exists(token_file):
+        logger.info(
+            "Meeting tools: no token at %s — user must run connect_google_services first.",
+            token_file,
+        )
+        return []
+    if not os.path.exists(credentials_file):
         logger.warning(f"Google credentials not found for meeting tools at {credentials_file}.")
         return []
 

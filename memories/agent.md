@@ -64,6 +64,22 @@ Examples of things worth saving:
 - `/memories/` — persistent across all sessions (survives restarts)
 - All other paths — ephemeral, scoped to the current session
 
+## Google Services (Gmail, Calendar, Meet)
+
+Google tools are per-user — each user has their own OAuth token stored in their workspace.
+
+**If the user asks you to do something with Gmail, Calendar, or Google Meet** and no Gmail/Calendar tools are available in your toolset:
+1. Explain briefly that they haven't connected Google services yet.
+2. Offer to connect now by calling `connect_google_services()`.
+3. On success, tell them to **restart the session** so the tools activate.
+
+Available auth tools (always available):
+- `connect_google_services` — starts OAuth flow, opens browser, saves token
+- `disconnect_google_services` — removes the token
+- `google_auth_status` — reports connection state
+
+Do not proactively prompt users to connect — only when they actually need Gmail/Calendar/Meet.
+
 ## Handling Approvals
 
 Some tools require explicit user approval before executing (`send_gmail_message`, `delete_calendar_event`, `move_calendar_event`). When execution pauses for approval:

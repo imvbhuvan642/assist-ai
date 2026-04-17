@@ -61,7 +61,27 @@ Present the results clearly:
 
 If the user wants to change skills, use `set_enabled_skills(skill_names)` with the full updated list (this is a single batch call — do NOT call enable_skill/disable_skill multiple times).
 
-### Step 5: Approval Gates
+### Step 5: Google Services (Gmail, Calendar, Meet)
+
+Ask the user if they want to connect their Google account:
+
+> Would you like to connect your Google services now? This enables:
+> - **Gmail** — search, read, draft, and send emails
+> - **Calendar** — create and manage calendar events
+> - **Meet** — schedule video meetings with Meet links
+>
+> Reply **yes** to authorize now (a browser window will open), or **later** to skip. You can always connect later by saying "connect my Google account".
+
+If the user says yes:
+1. Call `connect_google_services()`. This opens a browser for OAuth authorization.
+2. The tool saves the token to the user's private creds directory.
+3. Tell the user they must **restart the session** for Gmail/Calendar/Meeting tools to activate.
+
+If the user says later/no:
+- Skip without any changes. The Google integration tools simply won't be available until they connect.
+- Do NOT remind them again later — they'll discover the limitation when they try to use Gmail/Calendar.
+
+### Step 6: Approval Gates
 
 Explain the current defaults:
 > By default, I'll ask for your approval before:
@@ -73,7 +93,7 @@ Explain the current defaults:
 
 Handle any changes via `update_approval_gate(tool_name, enabled)`.
 
-### Step 6: Confirmation
+### Step 7: Confirmation
 
 Summarize the configuration by calling `get_user_profile()` and `list_enabled_skills()`.
 
@@ -88,3 +108,7 @@ Summarize the configuration by calling `get_user_profile()` and `list_enabled_sk
 - If the user seems impatient, offer to use sensible defaults and skip ahead.
 - The onboarding skill should only run once per user. After the profile is created, subsequent sessions use the preferences skill instead.
 - Always create the profile directory before writing any settings (the tools handle this automatically).
+
+Things to Note:
+1. Directly give the summary to the User after Step 6, do not ask if they want to see it. The summary is a nice way to end the onboarding flow and make the user feel good about their new setup.
+2. The onboarding flow should be linear and not allow the user to jump around between steps.
