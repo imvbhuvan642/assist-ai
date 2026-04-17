@@ -5,7 +5,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
-from deepagents import create_deep_agent
+from deepagents import create_deep_agent, FilesystemPermission
 
 from .load_config import AppConfig, load_config
 from .memory import create_checkpointer, create_backend
@@ -59,17 +59,6 @@ def _build_dynamic_prompt_middleware(user_id: str | None = None):
         return ""
 
     middlewares.append(user_preferences)
-
-    # Also inject the global preferences for user-scoped mode (backward compat)
-    if user_id and _PREFS_FILE.exists():
-        @dynamic_prompt
-        def global_preferences(_request: ModelRequest) -> str:
-            content = _PREFS_FILE.read_text(encoding="utf-8").strip()
-            if content:
-                return f"## Global Preferences\n{content}"
-            return ""
-
-        middlewares.append(global_preferences)
 
     # User profile & filtered skill list injection
     if user_id:
@@ -165,6 +154,131 @@ def _build_static_system_prompt(
     return "\n\n".join(parts) if parts else None
 
 
+def _build_filesystem_permissions() -> list[FilesystemPermission]:
+    """Build declarative filesystem permission rules.
+
+    Rules are evaluated in declaration order — first match wins.
+
+    Policy:
+      - Hard-deny writes to sensitive project files (.env, config, source code)
+      - ``/memories/`` is writable (user-scoped, how the agent learns)
+      - ``/skills/`` is writable but guarded by an approval prompt (see SkillWriteGuardMiddleware)
+      - Everything else falls through to the default StateBackend (ephemeral)
+    """
+    return [
+        # Hard-deny writes to sensitive project files
+        FilesystemPermission(
+            operations=["write","read"],
+            paths=[
+                "/.env",
+                "/.env.*",
+                "/config.yaml",
+                "/config.local.yaml",
+                "/main.py",
+                "/requirements.txt",
+                "/src/**",
+                "/tools/**",
+                "/creds/**",
+                "/.mcp.json",
+                "/.gitignore",
+            ],
+            mode="deny",
+        ),
+        # Allow writes to /memories/ (user-scoped preferences)
+        FilesystemPermission(
+            operations=["write"],
+            paths=["/memories/**"],
+            mode="allow",
+        ),
+        # Allow writes to /skills/ (guarded by SkillWriteGuardMiddleware below)
+        FilesystemPermission(
+            operations=["write"],
+            paths=["/skills/**"],
+            mode="allow",
+        ),
+    ]
+
+
+def _build_skill_write_guard_middleware():
+    """Middleware that pauses and asks for human approval before writing to /skills/.
+
+    Only interrupts on write_file / edit_file tool calls whose path argument
+    starts with /skills/ or skills/. All other tool calls pass through.
+    """
+    try:
+        from langchain.agents.middleware import AgentMiddleware
+        from langgraph.types import interrupt
+    except Exception as exc:
+        logger.warning("Skipping skill-write guard middleware: %s", exc)
+        return None
+
+    class SkillWriteGuardMiddleware(AgentMiddleware):
+        """Intercepts write_file / edit_file calls targeting /skills/ and asks for approval."""
+
+        _WRITE_TOOLS = {"write_file", "edit_file"}
+
+        def _is_skill_path(self, path: str) -> bool:
+            if not isinstance(path, str):
+                return False
+            p = path.lstrip("/")
+            return p.startswith("skills/")
+
+        def wrap_tool_call(self, request, handler):
+            tool_name = request.tool_call.get("name", "")
+            if tool_name in self._WRITE_TOOLS:
+                args = request.tool_call.get("args", {}) or {}
+                # write_file uses 'file_path', edit_file also uses 'file_path'
+                path = args.get("file_path") or args.get("path") or ""
+                if self._is_skill_path(path):
+                    decision = interrupt({
+                        "type": "skill_write_approval",
+                        "tool_name": tool_name,
+                        "path": path,
+                        "message": f"Agent wants to {tool_name} on shared skill file: {path}",
+                        "tool_input": args,
+                    })
+                    # Accept multiple resume formats: bool, {"approved": bool}, or raw truthy/falsy
+                    if isinstance(decision, dict):
+                        approved = decision.get("approved", True)
+                    else:
+                        approved = bool(decision)
+                    if not approved:
+                        from langchain_core.messages import ToolMessage
+                        return ToolMessage(
+                            content=f"Skill write denied by user: {path}",
+                            tool_call_id=request.tool_call.get("id", ""),
+                        )
+            return handler(request)
+
+        async def awrap_tool_call(self, request, handler):
+            tool_name = request.tool_call.get("name", "")
+            if tool_name in self._WRITE_TOOLS:
+                args = request.tool_call.get("args", {}) or {}
+                path = args.get("file_path") or args.get("path") or ""
+                if self._is_skill_path(path):
+                    decision = interrupt({
+                        "type": "skill_write_approval",
+                        "tool_name": tool_name,
+                        "path": path,
+                        "message": f"Agent wants to {tool_name} on shared skill file: {path}",
+                        "tool_input": args,
+                    })
+                    # Accept multiple resume formats: bool, {"approved": bool}, or raw truthy/falsy
+                    if isinstance(decision, dict):
+                        approved = decision.get("approved", True)
+                    else:
+                        approved = bool(decision)
+                    if not approved:
+                        from langchain_core.messages import ToolMessage
+                        return ToolMessage(
+                            content=f"Skill write denied by user: {path}",
+                            tool_call_id=request.tool_call.get("id", ""),
+                        )
+            return await handler(request)
+
+    return SkillWriteGuardMiddleware()
+
+
 async def create_agent(config: AppConfig | None = None, user_id: str | None = None):
     """Create and return the Assist-AI proactive agent.
 
@@ -185,15 +299,20 @@ async def create_agent(config: AppConfig | None = None, user_id: str | None = No
     if config is None:
         config = load_config()
 
-    # Set the active user for user_config tools
+    # Set the active user for user-scoped tools
     if user_id:
         try:
-            from tools.user_config import set_active_user, get_user_dir
-            set_active_user(user_id)
+            from tools.user_config import set_active_user as set_config_user, get_user_dir
+            set_config_user(user_id)
             get_user_dir(user_id, persona=config.persona.active)  # ensure profile directory exists
-            logger.info("Active user: %s", user_id)
         except Exception as exc:
-            logger.warning("Failed to set active user: %s", exc)
+            logger.warning("Failed to set active user (user_config): %s", exc)
+        try:
+            from tools.agents import set_active_user as set_agents_user
+            set_agents_user(user_id)
+        except Exception as exc:
+            logger.warning("Failed to set active user (agents): %s", exc)
+        logger.info("Active user: %s", user_id)
 
     # ------------------------------------------------------------------
     # LLM — model-agnostic via langchain.chat_models.init_chat_model
@@ -263,9 +382,34 @@ async def create_agent(config: AppConfig | None = None, user_id: str | None = No
     middleware = list(dynamic_middlewares)
 
     # ------------------------------------------------------------------
+    # Summarization tool middleware — lets the agent proactively compact
+    # context at natural breakpoints (end of a skill workflow) instead of
+    # waiting for the automatic 85%-context trigger.
+    # The auto-summarizer at 85% still runs — this adds a tool the agent
+    # can call voluntarily.
+    # ------------------------------------------------------------------
+    try:
+        from deepagents.middleware.summarization import create_summarization_tool_middleware
+        summarization_mw = create_summarization_tool_middleware(model, backend)
+        middleware.append(summarization_mw)
+        logger.info("Summarization tool middleware enabled")
+    except Exception as exc:
+        logger.warning("Skipping summarization tool middleware: %s", exc)
+
+    # ------------------------------------------------------------------
+    # Skill-write guard — pauses and asks for human approval before
+    # writing to /skills/ (shared skill files).  Per-path interrupt that
+    # doesn't block unrelated writes.
+    # ------------------------------------------------------------------
+    skill_guard = _build_skill_write_guard_middleware()
+    if skill_guard is not None:
+        middleware.append(skill_guard)
+        logger.info("Skill-write guard middleware enabled")
+
+    # ------------------------------------------------------------------
     # Subagents — auto-discovered from agents/*/agent.yaml
     # ------------------------------------------------------------------
-    subagents = load_agents(_PROJECT_ROOT, tools, persona=config.persona.active)
+    subagents = load_agents(_PROJECT_ROOT, tools, persona=config.persona.active, user_id=user_id)
     if subagents:
         logger.info("Subagents loaded: %d", len(subagents))
 
@@ -282,6 +426,7 @@ async def create_agent(config: AppConfig | None = None, user_id: str | None = No
         system_prompt=system_prompt,
         middleware=middleware,
         interrupt_on={name: {} for name in config.agent.interrupt_on} if config.agent.interrupt_on else None,
+        permissions=_build_filesystem_permissions(),
     )
     agent = create_deep_agent(**agent_kwargs)
 

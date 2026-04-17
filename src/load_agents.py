@@ -1,4 +1,12 @@
-"""Agent discovery — loads subagent definitions from agents/*/agent.yaml."""
+"""Agent discovery — loads subagent definitions from agents/*/agent.yaml.
+
+Scans two directories:
+  1. Global agents:  ``<project_root>/agents/``  (persona-filtered, shared)
+  2. User agents:    ``<project_root>/workspace/users/<user_id>/agents/``  (user-only)
+
+Global agents are filtered by persona (``personas`` field in agent.yaml).
+User agents are always loaded — they belong to the active user.
+"""
 
 import logging
 from pathlib import Path
@@ -8,8 +16,13 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
-def load_agents(project_root: Path, all_tools: list, persona: str | None = None) -> list[dict]:
-    """Scan agents/*/agent.yaml and return a list of SubAgent dicts.
+def load_agents(
+    project_root: Path,
+    all_tools: list,
+    persona: str | None = None,
+    user_id: str | None = None,
+) -> list[dict]:
+    """Scan global and user agent directories, return SubAgent dicts.
 
     Each returned dict has the keys expected by create_deep_agent(subagents=...):
         name, description, system_prompt
@@ -19,24 +32,38 @@ def load_agents(project_root: Path, all_tools: list, persona: str | None = None)
     Parameters
     ----------
     project_root:
-        Absolute path to the project root (used to locate the agents/ dir).
+        Absolute path to the project root.
     all_tools:
         Full list of loaded LangChain tools from load_tools().
-        Used to resolve tool names declared in agent.yaml → actual tool objects.
     persona:
-        Active persona (e.g. ``"developer"``, ``"hr"``).  When set, only
-        subagents whose ``personas`` list includes this value (or that have
-        no ``personas`` field at all) are loaded.
+        Active persona.  Global subagents with a ``personas`` field that
+        does not include this value are skipped.
+    user_id:
+        Active user ID.  When set, also scans
+        ``workspace/users/<user_id>/agents/`` for user-created agents.
     """
-    agents_dir = project_root / "agents"
-    if not agents_dir.exists():
+    # Collect agent.yaml paths from both directories
+    yaml_paths: list[tuple[Path, bool]] = []  # (path, is_user_agent)
+
+    global_dir = project_root / "agents"
+    if global_dir.exists():
+        for p in sorted(global_dir.glob("*/agent.yaml")):
+            yaml_paths.append((p, False))
+
+    if user_id:
+        user_dir = project_root / "workspace" / "users" / user_id / "agents"
+        if user_dir.exists():
+            for p in sorted(user_dir.glob("*/agent.yaml")):
+                yaml_paths.append((p, True))
+
+    if not yaml_paths:
         return []
 
     tool_registry: dict[str, object] = {t.name: t for t in all_tools}
 
     subagents: list[dict] = []
 
-    for yaml_path in sorted(agents_dir.glob("*/agent.yaml")):
+    for yaml_path, is_user_agent in yaml_paths:
         try:
             with open(yaml_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
@@ -49,11 +76,12 @@ def load_agents(project_root: Path, all_tools: list, persona: str | None = None)
                 logger.warning("Skipping %s — missing required fields (name/description/system_prompt)", yaml_path)
                 continue
 
-            # Persona filter: skip agents not meant for the active persona
-            agent_personas: list[str] = data.get("personas") or []
-            if persona and agent_personas and persona not in agent_personas:
-                logger.info("Skipping subagent '%s' — not in persona '%s' (requires %s)", name, persona, agent_personas)
-                continue
+            # Persona filter: only applies to global agents, user agents always load
+            if not is_user_agent:
+                agent_personas: list[str] = data.get("personas") or []
+                if persona and agent_personas and persona not in agent_personas:
+                    logger.info("Skipping subagent '%s' — not in persona '%s' (requires %s)", name, persona, agent_personas)
+                    continue
 
             # Resolve tools: names → objects; missing names are warned and skipped
             requested_tools: list[str] = data.get("tools") or []
@@ -91,7 +119,8 @@ def load_agents(project_root: Path, all_tools: list, persona: str | None = None)
                 subagent["model"] = data["model"]
 
             subagents.append(subagent)
-            logger.info("Subagent loaded: %s", name)
+            scope = "user" if is_user_agent else "global"
+            logger.info("Subagent loaded: %s (%s)", name, scope)
 
         except Exception as exc:
             logger.warning("Failed to load agent from %s: %s", yaml_path, exc)

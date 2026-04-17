@@ -118,8 +118,11 @@ async def run():
         print(f"[ERROR] Failed to create agent: {exc}", file=sys.stderr)
         sys.exit(1)
 
+    # Namespace thread_id by user so conversation history doesn't bleed between users
+    effective_thread_id = f"{user_id}:{args.thread}" if user_id else args.thread
+
     run_config: dict = {"configurable": {
-        "thread_id": args.thread,
+        "thread_id": effective_thread_id,
         "timezone": config.agent.timezone,
     }}
 
@@ -128,10 +131,23 @@ async def run():
             from langfuse.langchain import CallbackHandler as LangfuseCallbackHandler
             langfuse_handler = LangfuseCallbackHandler()
             run_config["callbacks"] = [langfuse_handler]
-            logger.info("Langfuse tracing enabled (session_id=%s)", args.thread)
+            logger.info("Langfuse tracing enabled (session_id=%s)", effective_thread_id)
             print("  Tracing: Langfuse enabled\n")
         except ImportError:
             logger.warning("Langfuse enabled in config but 'langfuse' package not installed — skipping")
+
+    if config.langsmith.enabled:
+        import os as _os
+        # deepagents/LangChain reads these env vars automatically for tracing
+        _os.environ.setdefault("LANGSMITH_TRACING", "true")
+        if config.langsmith.project:
+            _os.environ.setdefault("LANGSMITH_PROJECT", config.langsmith.project)
+        if _os.environ.get("LANGSMITH_API_KEY"):
+            logger.info("LangSmith tracing enabled (project=%s)",
+                         config.langsmith.project or "default")
+            print(f"  Tracing: LangSmith ({config.langsmith.project or 'default'})\n")
+        else:
+            logger.warning("LangSmith enabled in config but LANGSMITH_API_KEY not set — skipping")
 
     # Auto-trigger onboarding for new users
     if is_new_user:
@@ -162,7 +178,7 @@ async def run():
             print("Goodbye.")
             break
 
-        logger.info("User [%s]: %s", args.thread, user_input)
+        logger.info("User [%s]: %s", effective_thread_id, user_input)
 
         try:
             with console.status("[bold cyan]Thinking...", spinner="dots"):
@@ -192,7 +208,7 @@ async def run():
 
             response = result["messages"][-1].content
             console.print(f"\n[bold blue]Assistant:[/bold blue] {response}\n")
-            logger.info("Assistant [%s]: %s", args.thread, response)
+            logger.info("Assistant [%s]: %s", effective_thread_id, response)
         except Exception as exc:
             logger.exception("Agent error on input: %s", user_input)
             print(f"\n[ERROR] {exc}\n", file=sys.stderr)

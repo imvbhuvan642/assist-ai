@@ -57,6 +57,11 @@ class LangfuseConfig(BaseModel):
     enabled: bool = False
 
 
+class LangSmithConfig(BaseModel):
+    enabled: bool = False
+    project: Optional[str] = None
+
+
 class MCPServerConfig(BaseModel):
     transport: Literal["stdio", "sse"] = "stdio"
     # stdio fields
@@ -103,6 +108,7 @@ class AppConfig(BaseModel):
     skills: SkillsConfig = SkillsConfig()
     logging: LoggingConfig = LoggingConfig()
     langfuse: LangfuseConfig = LangfuseConfig()
+    langsmith: LangSmithConfig = LangSmithConfig()
     mcp: MCPConfig = MCPConfig()
     persona: PersonaConfig = PersonaConfig()
     users: UsersConfig = UsersConfig()

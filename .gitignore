@@ -7,6 +7,7 @@ __pycache__/
 /data
 /logs
 # C extensions
+/docs
 *.so
 /memories/user_preferences.txt
 /archive

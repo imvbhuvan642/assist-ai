@@ -100,47 +100,9 @@ New users are auto-onboarded with role selection, preference setup, and persona-
 │   ├── memory.py              # Persistent checkpointer + user-scoped filesystem backend
 │   └── logger.py              # Per-session file logging
 ├── tools/
-│   ├── websearch.py           # Tavily web search
-│   ├── content.py             # Cover image generation (Google GenAI)
-│   ├── agents.py              # create_agent tool (dynamic subagent creation)
-│   ├── gmail.py               # Gmail read/send tools
-│   ├── calendar_tools.py      # Google Calendar + Google Meet
-│   ├── meeting_tools.py       # Meeting scheduling tools
-│   ├── user_config.py         # Profile, skill toggle, approval gate CRUD (8 tools)
-│   ├── rag.py                 # Semantic search over company docs (ChromaDB + PyPDF)
-│   ├── hris.py                # Leave/employee data (mock + BambooHR provider)
-│   └── sqltools.py            # SQL query utilities
+│   └── All Tool scripts are stored here.
 ├── skills/                    # Skill modules (auto-discovered SKILL.md)
-│   ├── code-review/           # PR review and code analysis
-│   ├── cicd-monitoring/       # CI/CD pipeline monitoring
-│   ├── sprint-management/     # Sprint tracking and reports
-│   ├── doc-generation/        # README, API docs, ADR generation
-│   ├── incident-management/   # Production incident response
-│   ├── leave-management/      # Leave balance and applications
-│   ├── policy-qa/             # RAG-powered company policy Q&A
-│   ├── employee-onboarding/   # New hire onboarding workflows
-│   ├── performance-review/    # Review cycle management
-│   ├── recruitment/           # Hiring pipeline management
-│   ├── standup-summary/       # Team standup synthesis
-│   ├── one-on-one-prep/       # 1:1 meeting agenda generation
-│   ├── okr-tracking/          # OKR/KPI progress tracking
-│   ├── resource-allocation/   # Team capacity analysis
-│   ├── escalation-handling/   # Escalation coordination
-│   ├── feature-tracking/      # Feature request prioritization (RICE/ICE)
-│   ├── feedback-analysis/     # User feedback sentiment analysis
-│   ├── roadmap-management/    # Product roadmap tracking
-│   ├── competitive-analysis/  # Competitor research
-│   ├── release-notes/         # Changelog generation from PRs/tickets
-│   ├── stakeholder-comms/     # Audience-adapted status updates
-│   ├── web-search/            # Web search workflow
-│   ├── email-management/      # Gmail workflow
-│   ├── calendar-management/   # Calendar workflow
-│   ├── content-writer/        # Blog post writing
-│   ├── query-writing/         # SQL query workflow
-│   ├── schema-exploration/    # Database schema discovery
-│   ├── preferences/           # Conversational config management
-│   ├── onboarding/            # First-run user setup wizard
-│   └── skill-creation/        # Meta-skill for creating new skills
+│   └── All Skills are Stored here   
 ├── agents/                    # Persona-specific subagents
 │   ├── developer-assistant/   # Code review, CI/CD, sprints, incidents
 │   ├── hr-assistant/          # Leave, policy, onboarding, recruitment

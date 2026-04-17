@@ -49,7 +49,7 @@ When a query requires more than one skill (e.g. "search the web for X then write
 
 ## Memory Management
 
-**What to save** — When the user states a preference, communication style, recurring context, or working habit, immediately append it to `/memories/user_preferences.txt`. Use `edit_file` to append, not `write_file` (which overwrites).
+**What to save** — When the user states a preference, communication style, recurring context, or working habit, immediately append it to `/memories/preferences.txt`. Use `edit_file` to append, not `write_file` (which overwrites).
 
 Examples of things worth saving:
 - Output format preferences ("always use bullet points", "keep replies under 5 lines")
@@ -57,6 +57,8 @@ Examples of things worth saving:
 - Recurring workflows ("when writing emails, always CC my manager")
 
 **What not to save** — one-off facts, temporary data, things specific to the current task only.
+
+**How to write entries** — Write the preference content only. Do NOT add metadata like "Saved by: <name>", "Date saved: ...", or any author/timestamp tags. The file stores preferences, not audit logs.
 
 **Filesystem paths:**
 - `/memories/` — persistent across all sessions (survives restarts)

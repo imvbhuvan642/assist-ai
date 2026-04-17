@@ -1,4 +1,9 @@
-"""Tool for dynamically creating new specialized agents with associated skills."""
+"""Tool for dynamically creating new specialized agents with associated skills.
+
+When a user is active (--user flag), agents are created in the user's
+workspace directory (workspace/users/<id>/agents/) and are only visible
+to that user.  Without a user, agents go to the global agents/ directory.
+"""
 
 import logging
 import re
@@ -11,6 +16,25 @@ logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _AGENTS_DIR = _PROJECT_ROOT / "agents"
+_USERS_DIR = _PROJECT_ROOT / "workspace" / "users"
+
+# Set by agent.py at startup when --user is provided.
+_active_user_id: str | None = None
+
+
+def set_active_user(user_id: str | None) -> None:
+    """Set the active user so create_agent writes to the user's directory."""
+    global _active_user_id
+    _active_user_id = user_id
+
+
+def _get_agents_dir() -> Path:
+    """Return the agents directory — user-scoped if a user is active, else global."""
+    if _active_user_id:
+        user_agents = _USERS_DIR / _active_user_id / "agents"
+        user_agents.mkdir(parents=True, exist_ok=True)
+        return user_agents
+    return _AGENTS_DIR
 
 
 def _slugify(name: str) -> str:
@@ -51,9 +75,10 @@ def create_agent(
         return "Error: could not derive a valid agent slug from the provided name."
 
     # ------------------------------------------------------------------ #
-    # 1. Write agents/<slug>/agent.yaml
+    # 1. Write agent.yaml — user-scoped or global
     # ------------------------------------------------------------------ #
-    agent_dir = _AGENTS_DIR / slug
+    agents_base = _get_agents_dir()
+    agent_dir = agents_base / slug
     agent_dir.mkdir(parents=True, exist_ok=True)
 
     agent_data: dict = {
@@ -117,9 +142,11 @@ description: "{description}"
     # ------------------------------------------------------------------ #
     # 3. Return confirmation
     # ------------------------------------------------------------------ #
+    relative_dir = agent_dir.relative_to(_PROJECT_ROOT)
+    scope = f"user '{_active_user_id}'" if _active_user_id else "global"
     return (
-        f"Agent '{slug}' created.\n"
-        f"  Config : agents/{slug}/agent.yaml\n"
-        f"  Skill  : agents/{slug}/SKILL.md\n\n"
+        f"Agent '{slug}' created ({scope}).\n"
+        f"  Config : {relative_dir}/agent.yaml\n"
+        f"  Skill  : {relative_dir}/SKILL.md\n\n"
         "Restart the agent for the subagent to become active."
     )
