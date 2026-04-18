@@ -77,7 +77,7 @@ workspace/users/<id>/
 ```
 
 Users can customize their setup conversationally:
-- *"Disable the content-writer skill"*
+- *"Disable the web-search skill"*
 - *"Add an approval gate for calendar events"*
 - *"Switch me to the PM persona"*
 - *"Show my config"*

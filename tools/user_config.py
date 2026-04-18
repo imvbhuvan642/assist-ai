@@ -45,7 +45,7 @@ _PERSONA_SKILLS: dict[str, list[str]] = {
         "feature-tracking", "feedback-analysis", "roadmap-management",
         "competitive-analysis", "release-notes", "stakeholder-comms",
         "sprint-management", "web-search", "email-management", "calendar-management",
-        "content-writer", "preferences", "skill-creation",
+        "preferences", "skill-creation",
     ],
 }
 
@@ -306,6 +306,8 @@ def update_approval_gate(tool_name: str, require_approval: bool) -> str:
     Args:
         tool_name: The name of the tool to modify approval for.
         require_approval: True to require approval before executing, False to remove the gate.
+
+    Changes are picked up the next time the agent session starts.
     """
     user_dir = get_user_dir()
     path = user_dir / "interrupt_on.yaml"
@@ -317,13 +319,13 @@ def update_approval_gate(tool_name: str, require_approval: bool) -> str:
         if tool_name not in data:
             data.append(tool_name)
             _write_yaml(path, data)
-            return f"Added approval gate for: {tool_name}"
-        return f"Approval gate already exists for: {tool_name}"
+            return f"Added approval gate for: {tool_name}. Restart the session to apply it."
+        return f"Approval gate already exists for: {tool_name}. Current session behavior is unchanged."
     else:
         if tool_name in data:
             data.remove(tool_name)
             _write_yaml(path, data)
-            return f"Removed approval gate for: {tool_name}"
+            return f"Removed approval gate for: {tool_name}. Restart the session to apply it."
         return f"No approval gate exists for: {tool_name}"
 
 

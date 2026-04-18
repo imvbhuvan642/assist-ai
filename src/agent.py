@@ -21,6 +21,44 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
+def _resolve_interrupt_on(
+    default_interrupts: list[str] | None,
+    user_id: str | None = None,
+) -> list[str] | None:
+    """Return the active approval-gated tools for this session.
+
+    When a user-scoped ``interrupt_on.yaml`` exists, it overrides the global
+    config list. If the file is missing or invalid, fall back to the global
+    ``config.agent.interrupt_on`` value.
+    """
+    if not user_id:
+        return default_interrupts
+
+    try:
+        import yaml as _yaml
+
+        user_interrupts_path = _PROJECT_ROOT / "workspace" / "users" / user_id / "interrupt_on.yaml"
+        if not user_interrupts_path.exists():
+            return default_interrupts
+
+        with open(user_interrupts_path, encoding="utf-8") as f:
+            data = _yaml.safe_load(f) or []
+
+        if not isinstance(data, list):
+            logger.warning(
+                "User interrupt_on file is not a list: %s. Falling back to global config.",
+                user_interrupts_path,
+            )
+            return default_interrupts
+
+        interrupts = [name for name in data if isinstance(name, str) and name.strip()]
+        logger.info("Loaded %d user-specific approval gates for %s", len(interrupts), user_id)
+        return interrupts
+    except Exception as exc:
+        logger.warning("Failed to load user-specific approval gates for %s: %s", user_id, exc)
+        return default_interrupts
+
+
 def _build_dynamic_prompt_middleware(user_id: str | None = None):
     """Return @dynamic_prompt middlewares that inject user context on every call.
 
@@ -421,6 +459,8 @@ async def create_agent(config: AppConfig | None = None, user_id: str | None = No
     # ------------------------------------------------------------------
     # Agent assembly
     # ------------------------------------------------------------------
+    active_interrupts = _resolve_interrupt_on(config.agent.interrupt_on, user_id=user_id)
+
     agent_kwargs: dict = dict(
         model=model,
         tools=tools,
@@ -430,7 +470,7 @@ async def create_agent(config: AppConfig | None = None, user_id: str | None = No
         checkpointer=checkpointer,
         system_prompt=system_prompt,
         middleware=middleware,
-        interrupt_on={name: {} for name in config.agent.interrupt_on} if config.agent.interrupt_on else None,
+        interrupt_on={name: {} for name in active_interrupts} if active_interrupts else None,
         permissions=_build_filesystem_permissions(),
     )
     agent = create_deep_agent(**agent_kwargs)
@@ -443,6 +483,6 @@ async def create_agent(config: AppConfig | None = None, user_id: str | None = No
         "enabled" if config.skills.enabled else "disabled",
         config.persona.active,
         user_id or "global",
-        config.agent.interrupt_on,
+        active_interrupts,
     )
     return agent

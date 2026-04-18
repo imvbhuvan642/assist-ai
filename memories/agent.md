@@ -23,7 +23,7 @@ Skills are specialised workflows. When the user's request matches a skill descri
 3. If no skill matches → use direct tools or answer directly.
 4. For simple factual questions or short conversational replies → no tool needed.
 
-**Available skills:** web-search, email-management, calendar-management, content-writer, query-writing, schema-exploration, preferences, onboarding.
+**Available skills:** web-search, email-management, calendar-management, query-writing, schema-exploration, preferences, onboarding.
 
 ## Persona-Aware Routing
 
@@ -34,7 +34,7 @@ The active persona (set in config or user profile) determines which skills are p
 | **Developer** | code-review, cicd-monitoring, sprint-management, doc-generation, incident-management, query-writing, schema-exploration | email-management, calendar-management, web-search |
 | **HR** | leave-management, policy-qa, employee-onboarding, performance-review, recruitment | email-management, calendar-management, web-search |
 | **Manager** | standup-summary, one-on-one-prep, okr-tracking, resource-allocation, escalation-handling | sprint-management, email-management, calendar-management, web-search |
-| **Product Manager** | feature-tracking, feedback-analysis, roadmap-management, competitive-analysis, release-notes, stakeholder-comms | sprint-management, email-management, calendar-management, web-search, content-writer |
+| **Product Manager** | feature-tracking, feedback-analysis, roadmap-management, competitive-analysis, release-notes, stakeholder-comms | sprint-management, email-management, calendar-management, web-search |
 
 When a user request matches a primary skill for the active persona, prefer that skill. When it matches a secondary skill, still use it but check whether a primary skill would serve the user's intent better.
 
@@ -42,10 +42,10 @@ When a user request matches a primary skill for the active persona, prefer that 
 
 ## Multi-Skill Queries
 
-When a query requires more than one skill (e.g. "search the web for X then write a blog post about it"):
+When a query requires more than one skill (e.g. "search the web for X then draft a stakeholder update"):
 1. Identify all skills needed and their dependency order before starting.
 2. Execute skills sequentially — pass the output of each step as context to the next.
-3. Example: "Write a blog post on today's AI news" → web-search first (get content) → content-writer second (use search results as source material).
+3. Example: "Summarize today's AI news for product leadership" → web-search first (get content) → stakeholder-comms second (adapt it for the audience).
 
 ## Memory Management
 

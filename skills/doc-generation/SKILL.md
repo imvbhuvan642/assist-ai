@@ -17,7 +17,7 @@ Generate structured technical documentation from code, PRs, and project context.
 
 ## When NOT to Use
 
-- User wants a blog post or marketing content (use content-writer skill)
+- User wants a blog post or marketing content (not a technical documentation task)
 - User wants meeting notes (not a documentation task)
 
 ## Workflow
