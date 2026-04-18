@@ -19,6 +19,7 @@ from pathlib import Path
 
 import yaml
 from langchain_core.tools import tool
+from src.yaml_utils import load_yaml_dict
 
 logger = logging.getLogger(__name__)
 
@@ -67,16 +68,18 @@ def _update_integrations_yaml(user_id: str, service: str, connected: bool) -> No
     if not path.exists():
         return
     try:
-        with open(path, encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-        if not isinstance(data, dict):
-            data = {}
+        data = load_yaml_dict(path, context=f"integrations for {user_id}")
         if connected:
             data[service] = {"connected_at": datetime.now().isoformat(timespec="seconds")}
         else:
             data.pop(service, None)
         with open(path, "w", encoding="utf-8") as f:
             yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+        try:
+            from tools.user_config import _sync_managed_preferences
+            _sync_managed_preferences(user_id)
+        except Exception as exc:
+            logger.warning("Failed to sync managed preferences after integration update: %s", exc)
     except Exception as exc:
         logger.warning("Failed to update integrations.yaml: %s", exc)
 

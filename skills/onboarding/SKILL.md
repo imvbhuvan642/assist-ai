@@ -35,6 +35,7 @@ Ask for:
 - **Timezone**: "What timezone are you in?" (default to Asia/Kolkata if they're unsure)
 
 Call `update_user_profile("name", name)` and `update_user_profile("timezone", timezone)`.
+These details are automatically written into the user's `memories/preferences.txt` managed onboarding snapshot, so do not ask for them again later unless the user wants to change them.
 
 ### Step 3: Communication Preferences
 
@@ -45,6 +46,7 @@ Ask:
 > - **Detailed** — thorough explanations with examples
 
 Call `update_user_profile("communication_style", choice)`.
+This preference is automatically written into the user's `memories/preferences.txt` managed onboarding snapshot.
 
 ### Step 4: Skill Overview
 
@@ -60,6 +62,7 @@ Present the results clearly:
 > Would you like to **add** any of those, **remove** any of your current ones, or **keep the current set**?
 
 If the user wants to change skills, use `set_enabled_skills(skill_names)` with the full updated list (this is a single batch call — do NOT call enable_skill/disable_skill multiple times).
+The final skill selection is automatically written into the user's `memories/preferences.txt` managed onboarding snapshot.
 
 ### Step 5: Google Services (Gmail, Calendar, Meet)
 
@@ -92,6 +95,7 @@ Explain the current defaults:
 > Want to add or remove any approval gates?
 
 Handle any changes via `update_approval_gate(tool_name, enabled)`.
+The final approval-gate selection is automatically written into the user's `memories/preferences.txt` managed onboarding snapshot.
 
 ### Step 7: Confirmation
 
@@ -108,6 +112,7 @@ Summarize the configuration by calling `get_user_profile()` and `list_enabled_sk
 - If the user seems impatient, offer to use sensible defaults and skip ahead.
 - The onboarding skill should only run once per user. After the profile is created, subsequent sessions use the preferences skill instead.
 - Always create the profile directory before writing any settings (the tools handle this automatically).
+- Do not ask again for details that are already present in the managed onboarding snapshot in `memories/preferences.txt` unless the user explicitly wants to change them.
 
 Things to Note:
 1. Directly give the summary to the User after Step 6, do not ask if they want to see it. The summary is a nice way to end the onboarding flow and make the user feel good about their new setup.

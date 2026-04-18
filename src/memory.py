@@ -16,6 +16,7 @@ _MEMORIES_DIR = _PROJECT_ROOT / "memories"
 _SKILLS_DIR = _PROJECT_ROOT / "skills"
 _DATA_DIR = _PROJECT_ROOT / "data"
 _USERS_DIR = _PROJECT_ROOT / "workspace" / "users"
+_CHECKPOINTER_CONN = None
 
 
 async def create_checkpointer(db_path: str | Path | None = None) -> AsyncSqliteSaver:
@@ -23,10 +24,22 @@ async def create_checkpointer(db_path: str | Path | None = None) -> AsyncSqliteS
 
     Uses aiosqlite for fully async I/O — required when the agent is invoked via ainvoke.
     """
+    global _CHECKPOINTER_CONN
     path = Path(db_path) if db_path else _DATA_DIR / "checkpoints.db"
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = await aiosqlite.connect(str(path))
-    return AsyncSqliteSaver(conn)
+    if _CHECKPOINTER_CONN is None:
+        _CHECKPOINTER_CONN = await aiosqlite.connect(str(path))
+    return AsyncSqliteSaver(_CHECKPOINTER_CONN)
+
+
+async def close_checkpointer() -> None:
+    """Close the shared SQLite connection used by the async checkpointer."""
+    global _CHECKPOINTER_CONN
+    if _CHECKPOINTER_CONN is not None:
+        try:
+            await _CHECKPOINTER_CONN.close()
+        finally:
+            _CHECKPOINTER_CONN = None
 
 
 def create_backend(memories_dir: str | Path | None = None, user_id: str | None = None):

@@ -2,7 +2,6 @@
 
 ### Direct Tools (always available)
 - **internet_search** — web search via Tavily. Use for current events, factual lookups, financial data, news.
-- **generate_cover** — generate a cover/hero image using Google Gemini. Use for blog posts and content.
 - **Gmail** — search_gmail, get_gmail_message, get_gmail_thread, create_gmail_draft, send_gmail_message.
 - **Calendar** — create_calendar_event, search_events, update_calendar_event, delete_calendar_event, get_calendars_info, move_calendar_event, get_current_datetime.
 - **SQL** — sql_db_list_tables, sql_db_schema, sql_db_query, sql_db_query_checker. Only available when a database is configured.

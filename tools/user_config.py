@@ -7,6 +7,7 @@ from pathlib import Path
 
 import yaml
 from langchain_core.tools import tool
+from src.yaml_utils import load_yaml_file
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _USERS_DIR = _PROJECT_ROOT / "workspace" / "users"
 _DEFAULTS_DIR = _USERS_DIR / ".defaults"
 _SKILLS_DIR = _PROJECT_ROOT / "skills"
+_PREFERENCES_MANAGED_START = "<!-- ASSIST_AI_MANAGED_PREFERENCES_START -->"
+_PREFERENCES_MANAGED_END = "<!-- ASSIST_AI_MANAGED_PREFERENCES_END -->"
 
 # Module-level active user ID — set by the agent factory at startup.
 _active_user_id: str = "default"
@@ -84,6 +87,7 @@ def get_user_dir(user_id: str | None = None, persona: str = "developer") -> Path
         (user_dir / "memories" / "preferences.txt").write_text(
             "# User Preferences\n", encoding="utf-8"
         )
+        _sync_managed_preferences(uid)
         logger.info("Created new user profile directory: %s (persona=%s, skills=%d)",
                      user_dir, persona, len(default_skills))
     return user_dir
@@ -91,11 +95,7 @@ def get_user_dir(user_id: str | None = None, persona: str = "developer") -> Path
 
 def _read_yaml(path: Path) -> dict | list:
     """Read a YAML file, returning empty dict/list on missing or empty."""
-    if not path.exists():
-        return {}
-    with open(path, encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    return data if data is not None else {}
+    return load_yaml_file(path, {}, context=f"user config {path}")
 
 
 def _write_yaml(path: Path, data) -> None:
@@ -104,6 +104,73 @@ def _write_yaml(path: Path, data) -> None:
     with open(tmp_path, "w", encoding="utf-8") as f:
         yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
     tmp_path.replace(path)
+
+
+def _sync_managed_preferences(user_id: str | None = None) -> None:
+    """Mirror structured onboarding data into the user's preferences memory."""
+    uid = user_id or _active_user_id
+    user_dir = _USERS_DIR / uid
+    if not user_dir.exists():
+        return
+
+    profile = _read_yaml(user_dir / "profile.yaml")
+    enabled_skills_data = _read_yaml(user_dir / "enabled_skills.yaml")
+    approval_gates = _read_yaml(user_dir / "interrupt_on.yaml")
+    integrations = _read_yaml(user_dir / "integrations.yaml")
+
+    enabled_skills = enabled_skills_data.get("enabled", []) if isinstance(enabled_skills_data, dict) else []
+    approval_gates = approval_gates if isinstance(approval_gates, list) else []
+    integrations = integrations if isinstance(integrations, dict) else {}
+
+    managed_lines = [
+        _PREFERENCES_MANAGED_START,
+        "# Managed Profile Snapshot",
+    ]
+
+    if isinstance(profile, dict):
+        field_labels = {
+            "name": "Preferred name",
+            "persona": "Role/persona",
+            "timezone": "Timezone",
+            "communication_style": "Communication style",
+            "output_format": "Output format",
+        }
+        for key, label in field_labels.items():
+            value = profile.get(key)
+            if value:
+                managed_lines.append(f"- {label}: {value}")
+
+    if enabled_skills:
+        managed_lines.append(f"- Enabled skills: {', '.join(enabled_skills)}")
+
+    if approval_gates:
+        managed_lines.append(f"- Approval-gated tools: {', '.join(approval_gates)}")
+
+    connected_integrations = sorted(
+        name for name, meta in integrations.items()
+        if isinstance(meta, dict) and meta.get("connected_at")
+    )
+    if connected_integrations:
+        managed_lines.append(f"- Connected integrations: {', '.join(connected_integrations)}")
+
+    managed_lines.append(_PREFERENCES_MANAGED_END)
+    managed_block = "\n".join(managed_lines)
+
+    prefs_path = user_dir / "memories" / "preferences.txt"
+    prefs_path.parent.mkdir(parents=True, exist_ok=True)
+    existing = prefs_path.read_text(encoding="utf-8") if prefs_path.exists() else "# User Preferences\n"
+
+    start_idx = existing.find(_PREFERENCES_MANAGED_START)
+    end_idx = existing.find(_PREFERENCES_MANAGED_END)
+    if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
+        end_idx += len(_PREFERENCES_MANAGED_END)
+        before = existing[:start_idx].rstrip()
+        after = existing[end_idx:].lstrip()
+        rebuilt = "\n\n".join(part for part in [before, managed_block, after] if part)
+    else:
+        rebuilt = "\n\n".join(part for part in [existing.rstrip(), managed_block] if part)
+
+    prefs_path.write_text(rebuilt.rstrip() + "\n", encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +228,9 @@ def update_user_profile(key: str, value: str) -> str:
         with _file_lock:
             _write_yaml(skills_path, {"enabled": sorted(new_skills)})
         result += f"\nEnabled skills updated to {value} defaults ({len(new_skills)} skills)."
+
+    with _file_lock:
+        _sync_managed_preferences()
 
     return result
 
@@ -221,6 +291,7 @@ def set_enabled_skills(skill_names: list[str]) -> str:
     path = user_dir / "enabled_skills.yaml"
     with _file_lock:
         _write_yaml(path, {"enabled": sorted(skill_names)})
+        _sync_managed_preferences()
     return f"Enabled {len(skill_names)} skills: {', '.join(sorted(skill_names))}"
 
 
@@ -248,6 +319,7 @@ def enable_skill(skill_name: str) -> str:
         enabled.append(skill_name)
         data["enabled"] = sorted(enabled)
         _write_yaml(path, data)
+        _sync_managed_preferences()
     return f"Enabled skill: {skill_name}"
 
 
@@ -277,6 +349,7 @@ def disable_skill(skill_name: str) -> str:
             ]
             data["enabled"] = all_skills
             _write_yaml(path, data)
+            _sync_managed_preferences()
             return f"Disabled skill: {skill_name}. Switched to explicit skill list."
 
         if skill_name not in enabled:
@@ -284,6 +357,7 @@ def disable_skill(skill_name: str) -> str:
         enabled.remove(skill_name)
         data["enabled"] = enabled
         _write_yaml(path, data)
+        _sync_managed_preferences()
     return f"Disabled skill: {skill_name}"
 
 
@@ -319,12 +393,14 @@ def update_approval_gate(tool_name: str, require_approval: bool) -> str:
         if tool_name not in data:
             data.append(tool_name)
             _write_yaml(path, data)
+            _sync_managed_preferences()
             return f"Added approval gate for: {tool_name}. Restart the session to apply it."
         return f"Approval gate already exists for: {tool_name}. Current session behavior is unchanged."
     else:
         if tool_name in data:
             data.remove(tool_name)
             _write_yaml(path, data)
+            _sync_managed_preferences()
             return f"Removed approval gate for: {tool_name}. Restart the session to apply it."
         return f"No approval gate exists for: {tool_name}"
 

@@ -30,14 +30,6 @@ def load_tools(config: AppConfig, model, user_id: str | None = None) -> list:
     except Exception as exc:
         logger.warning("Skipping internet_search: %s", exc)
 
-    # Cover image generation (Google GenAI)
-    try:
-        from tools.content import generate_cover
-        tools.append(generate_cover)
-        logger.info("Tool loaded: generate_cover")
-    except Exception as exc:
-        logger.warning("Skipping generate_cover: %s", exc)
-
     # Gmail tools (per-user token)
     try:
         from tools.gmail import get_gmail_tools

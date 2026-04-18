@@ -350,7 +350,7 @@ When triggered, the terminal pauses and prompts:
 |----------|----------|
 | `OPENAI_API_KEY` | OpenAI models |
 | `ANTHROPIC_API_KEY` | Anthropic Claude models |
-| `GOOGLE_API_KEY` | Google GenAI models + cover image generation |
+| `GOOGLE_API_KEY` | Google GenAI models |
 | `TAVILY_API_KEY` | Web search tool |
 | `DATABASE_URL` | SQL database tools (optional) |
 | `GITHUB_TOKEN` | GitHub MCP server (optional) |

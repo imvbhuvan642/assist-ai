@@ -22,6 +22,7 @@ console = Console()
 from src.load_config import load_config
 from src.logger import setup_logging
 from src.agent import create_agent
+from src.yaml_utils import load_yaml_dict
 
 _THREAD_ID_DEFAULT = uuid.uuid4().hex
 
@@ -86,7 +87,6 @@ async def run():
     active_persona = config.persona.active  # default from config.yaml
     if user_id:
         from pathlib import Path
-        import yaml as _yaml
         user_profile_dir = Path(config.users.dir).resolve() / user_id
         is_new_user = not user_profile_dir.exists()
         # Read persona from existing user profile if available
@@ -94,8 +94,7 @@ async def run():
             profile_path = user_profile_dir / "profile.yaml"
             if profile_path.exists():
                 try:
-                    with open(profile_path, encoding="utf-8") as f:
-                        profile = _yaml.safe_load(f) or {}
+                    profile = load_yaml_dict(profile_path, context=f"user profile for {user_id}")
                     active_persona = profile.get("persona", active_persona)
                 except Exception:
                     pass
@@ -214,13 +213,11 @@ async def run():
             print(f"\n[ERROR] {exc}\n", file=sys.stderr)
 
     from src.load_mcp import shutdown_mcp
+    from src.memory import close_checkpointer
+
     shutdown_mcp()
+    await close_checkpointer()
 
 
 if __name__ == "__main__":
     asyncio.run(run())
-    # Force-exit: asyncio.run() hangs during cleanup because background threads
-    # (MCP stdio subprocesses, aiosqlite) keep the event loop from closing cleanly.
-    # os._exit() bypasses Python's cleanup and immediately terminates the process.
-    import os
-    os._exit(0)

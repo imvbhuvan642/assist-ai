@@ -11,7 +11,7 @@ User agents are always loaded — they belong to the active user.
 import logging
 from pathlib import Path
 
-import yaml
+from .yaml_utils import load_yaml_dict
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +65,7 @@ def load_agents(
 
     for yaml_path, is_user_agent in yaml_paths:
         try:
-            with open(yaml_path, encoding="utf-8") as f:
-                data = yaml.safe_load(f) or {}
+            data = load_yaml_dict(yaml_path, context=f"subagent config {yaml_path}")
 
             name = data.get("name", "").strip()
             description = data.get("description", "").strip()

@@ -11,6 +11,7 @@ from .load_config import AppConfig, load_config
 from .memory import create_checkpointer, create_backend
 from .load_tools import load_tools
 from .load_agents import load_agents
+from .yaml_utils import load_yaml_dict, load_yaml_list
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _PREFS_FILE = _PROJECT_ROOT / "memories" / "user_preferences.txt"
@@ -35,22 +36,11 @@ def _resolve_interrupt_on(
         return default_interrupts
 
     try:
-        import yaml as _yaml
-
         user_interrupts_path = _PROJECT_ROOT / "workspace" / "users" / user_id / "interrupt_on.yaml"
         if not user_interrupts_path.exists():
             return default_interrupts
 
-        with open(user_interrupts_path, encoding="utf-8") as f:
-            data = _yaml.safe_load(f) or []
-
-        if not isinstance(data, list):
-            logger.warning(
-                "User interrupt_on file is not a list: %s. Falling back to global config.",
-                user_interrupts_path,
-            )
-            return default_interrupts
-
+        data = load_yaml_list(user_interrupts_path, context=f"approval gates for {user_id}")
         interrupts = [name for name in data if isinstance(name, str) and name.strip()]
         logger.info("Loaded %d user-specific approval gates for %s", len(interrupts), user_id)
         return interrupts
@@ -100,8 +90,6 @@ def _build_dynamic_prompt_middleware(user_id: str | None = None):
 
     # User profile & filtered skill list injection
     if user_id:
-        import yaml as _yaml
-
         profile_path = _users_dir / user_id / "profile.yaml"
         enabled_skills_path = _users_dir / user_id / "enabled_skills.yaml"
 
@@ -112,8 +100,7 @@ def _build_dynamic_prompt_middleware(user_id: str | None = None):
             # Profile
             if profile_path.exists():
                 try:
-                    with open(profile_path, encoding="utf-8") as f:
-                        profile = _yaml.safe_load(f) or {}
+                    profile = load_yaml_dict(profile_path, context=f"user profile for {user_id}")
                     if profile:
                         lines = [f"- **{k}**: {v}" for k, v in profile.items() if v]
                         if lines:
@@ -124,9 +111,8 @@ def _build_dynamic_prompt_middleware(user_id: str | None = None):
             # Enabled skills filter
             if enabled_skills_path.exists():
                 try:
-                    with open(enabled_skills_path, encoding="utf-8") as f:
-                        data = _yaml.safe_load(f) or {}
-                    enabled = data.get("enabled", []) if isinstance(data, dict) else []
+                    data = load_yaml_dict(enabled_skills_path, context=f"enabled skills for {user_id}")
+                    enabled = data.get("enabled", [])
                     if enabled:
                         parts.append(
                             "## Enabled Skills (user filter)\n"
