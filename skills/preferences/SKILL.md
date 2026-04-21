@@ -34,7 +34,7 @@ Conversational interface for users to customize their Assist AI experience.
 
 1. Call `update_user_profile("persona", new_persona)`.
 2. Inform the user that the persona change will take full effect on the next session (the system prompt overlay loads at startup).
-3. Valid personas: `developer`, `hr`, `manager`, `product_manager`.
+3. Valid personas: `developer`, `hr`, `manager`, `project_manager`.
 
 ### Update Profile Fields
 

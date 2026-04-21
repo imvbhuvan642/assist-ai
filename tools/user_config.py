@@ -44,7 +44,7 @@ _PERSONA_SKILLS: dict[str, list[str]] = {
         "escalation-handling", "sprint-management", "web-search", "email-management",
         "calendar-management", "preferences", "skill-creation",
     ],
-    "product_manager": [
+    "project_manager": [
         "feature-tracking", "feedback-analysis", "roadmap-management",
         "competitive-analysis", "release-notes", "stakeholder-comms",
         "sprint-management", "web-search", "email-management", "calendar-management",
@@ -130,6 +130,8 @@ def _sync_managed_preferences(user_id: str | None = None) -> None:
     if isinstance(profile, dict):
         field_labels = {
             "name": "Preferred name",
+            "designation": "Designation",
+            "agent_name": "Agent name (user-chosen)",
             "persona": "Role/persona",
             "timezone": "Timezone",
             "communication_style": "Communication style",
@@ -204,11 +206,11 @@ def update_user_profile(key: str, value: str) -> str:
         key: The profile field to update (name, persona, timezone, communication_style, output_format).
         value: The new value for the field.
     """
-    valid_keys = {"name", "persona", "timezone", "communication_style", "output_format"}
+    valid_keys = {"name", "designation", "agent_name", "persona", "timezone", "communication_style", "output_format"}
     if key not in valid_keys:
         return f"Invalid profile key '{key}'. Valid keys: {', '.join(sorted(valid_keys))}"
 
-    valid_personas = {"developer", "hr", "manager", "product_manager"}
+    valid_personas = {"developer", "hr", "manager", "project_manager"}
     if key == "persona" and value not in valid_personas:
         return f"Invalid persona '{value}'. Valid personas: {', '.join(sorted(valid_personas))}"
 

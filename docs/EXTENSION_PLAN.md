@@ -1,6 +1,6 @@
 # Assist AI — Digital Employee Assistant Extension Plan
 
-> Turning Assist AI from a single-user terminal assistant into a role-aware, self-service digital employee platform for Developers, HRs, Managers, and Product Managers.
+> Turning Assist AI from a single-user terminal assistant into a role-aware, self-service digital employee platform for Developers, HRs, Managers, and Project Managers.
 
 ## Implementation Status
 
@@ -25,7 +25,7 @@
 5. [Phase 1 — Developer Persona](#phase-1--developer-persona)
 6. [Phase 2 — HR Persona](#phase-2--hr-persona)
 7. [Phase 3 — Manager Persona](#phase-3--manager-persona)
-8. [Phase 4 — Product Manager Persona](#phase-4--product-manager-persona)
+8. [Phase 4 — Project Manager Persona](#phase-4--project-manager-persona)
 9. [Phase 5 — Enterprise Hardening](#phase-5--enterprise-hardening)
 10. [File Manifest](#file-manifest)
 11. [External Dependencies](#external-dependencies)
@@ -60,7 +60,7 @@
 
 ```
 config.yaml
-├── persona.active: developer|hr|manager|product_manager
+├── persona.active: developer|hr|manager|project_manager
 ├── users.dir: ./workspace/users
 ├── rag: { enabled, documents_dir, vector_store, embedding_model }
 ├── hris: { enabled, provider, base_url, api_key }
@@ -80,7 +80,7 @@ prompts/personas/
 ├── developer.md
 ├── hr.md
 ├── manager.md
-└── product_manager.md
+└── project_manager.md
 ```
 
 ---
@@ -95,14 +95,14 @@ Add a `persona` top-level section:
 
 ```yaml
 persona:
-  active: "developer"  # developer | hr | manager | product_manager
+  active: "developer"  # developer | hr | manager | project_manager
 ```
 
 ### 0B. Add `PersonaConfig` to `src/load_config.py`
 
 ```python
 class PersonaConfig(BaseModel):
-    active: Literal["developer", "hr", "manager", "product_manager"] = "developer"
+    active: Literal["developer", "hr", "manager", "project_manager"] = "developer"
 ```
 
 Add `persona: PersonaConfig = PersonaConfig()` to `AppConfig`.
@@ -116,7 +116,7 @@ Four files in `prompts/personas/`:
 | `developer.md` | Developer | Code-first, technical depth, debugging mindset |
 | `hr.md` | HR | Compliance-aware, empathetic, employee-first |
 | `manager.md` | Manager | Strategic/operational, team-first, data-driven |
-| `product_manager.md` | Product Manager | User-centric, prioritization frameworks, stakeholder management |
+| `project_manager.md` | Project Manager | User-centric, prioritization frameworks, stakeholder management |
 
 Each overlay is appended to the base `identity.md` + `agent.md`, not a replacement.
 
@@ -139,7 +139,7 @@ Add a "Persona-Aware Routing" section mapping persona → primary skill categori
 | `prompts/personas/developer.md` | **New** |
 | `prompts/personas/hr.md` | **New** |
 | `prompts/personas/manager.md` | **New** |
-| `prompts/personas/product_manager.md` | **New** |
+| `prompts/personas/project_manager.md` | **New** |
 
 ---
 
@@ -207,7 +207,7 @@ Add `UsersConfig` Pydantic model to `src/load_config.py`:
 ```python
 class UsersConfig(BaseModel):
     dir: str = "./workspace/users"
-    default_persona: Literal["developer", "hr", "manager", "product_manager"] = "developer"
+    default_persona: Literal["developer", "hr", "manager", "project_manager"] = "developer"
 ```
 
 ### 0.5C. User Config Management Tool
@@ -454,7 +454,7 @@ system_prompt: "You are the manager-assistant agent..."
 
 ---
 
-## Phase 4 — Product Manager Persona
+## Phase 4 — Project Manager Persona
 
 **Goal**: Feature tracking, feedback analysis, roadmap management, competitive analysis, release notes, stakeholder communications.
 
@@ -587,7 +587,7 @@ docs/EXTENSION_PLAN.md                      # This document
 prompts/personas/developer.md               # Phase 0
 prompts/personas/hr.md                      # Phase 0
 prompts/personas/manager.md                 # Phase 0
-prompts/personas/product_manager.md         # Phase 0
+prompts/personas/project_manager.md         # Phase 0
 tools/user_config.py                        # Phase 0.5
 skills/preferences/SKILL.md                 # Phase 0.5
 skills/onboarding/SKILL.md                  # Phase 0.5

@@ -42,7 +42,7 @@ provider:
 
 # --- Persona ---
 # Controls agent tone, skill routing priorities, and default behavior.
-# Options: developer | hr | manager | product_manager
+# Options: developer | hr | manager | project_manager
 persona:
   active: "developer"
 

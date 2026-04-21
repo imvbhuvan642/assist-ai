@@ -1,6 +1,6 @@
 # Assist AI
 
-A role-aware digital employee assistant powered by LangChain + DeepAgents. Serves **Developers, HRs, Managers, and Product Managers** with persona-specific skills, per-user profiles, and self-service customization.
+A role-aware digital employee assistant powered by LangChain + DeepAgents. Serves **Developers, HRs, Managers, and Project Managers** with persona-specific skills, per-user profiles, and self-service customization.
 
 Supports persistent memory, skill-based task routing, dynamic subagent creation, RAG-powered policy Q&A, HRIS integration, MCP server integration, and multi-turn conversations via terminal.
 
@@ -46,7 +46,7 @@ The agent adapts its personality, skill routing, and subagent access based on th
 | **Developer** | code-review, cicd-monitoring, sprint-management, doc-generation, incident-management, query-writing, schema-exploration | developer-assistant |
 | **HR** | leave-management, policy-qa, employee-onboarding, performance-review, recruitment | hr-assistant |
 | **Manager** | standup-summary, one-on-one-prep, okr-tracking, resource-allocation, escalation-handling | manager-assistant |
-| **Product Manager** | feature-tracking, feedback-analysis, roadmap-management, competitive-analysis, release-notes, stakeholder-comms | pm-assistant |
+| **Project Manager** | feature-tracking, feedback-analysis, roadmap-management, competitive-analysis, release-notes, stakeholder-comms | pm-assistant |
 
 Universal skills available to all personas: web-search, email-management, calendar-management, preferences, onboarding.
 
@@ -55,7 +55,7 @@ Universal skills available to all personas: web-search, email-management, calend
 **Global default** — set in `config.yaml`:
 ```yaml
 persona:
-  active: "developer"  # developer | hr | manager | product_manager
+  active: "developer"  # developer | hr | manager | project_manager
 ```
 
 **Per-user** — selected during onboarding and stored in `workspace/users/<id>/profile.yaml`. Overrides the global default when using `--user`.
@@ -112,7 +112,7 @@ New users are auto-onboarded with role selection, preference setup, and persona-
 │   ├── developer.md
 │   ├── hr.md
 │   ├── manager.md
-│   └── product_manager.md
+│   └── project_manager.md
 ├── memories/                  # Global agent memory (gitignored)
 │   ├── identity.md            # Agent personality/tone
 │   ├── agent.md               # Agent capabilities + routing rules
@@ -135,7 +135,7 @@ New users are auto-onboarded with role selection, preference setup, and persona-
 | `provider` | `model` | Model ID (e.g. `gpt-5-mini`, `claude-sonnet-4-6`, `gemini-2.0-flash`) |
 | `provider` | `temperature` | Sampling temperature (0.0–2.0) |
 | `provider` | `max_tokens` | Max output tokens |
-| `persona` | `active` | Default persona: `developer`, `hr`, `manager`, `product_manager` |
+| `persona` | `active` | Default persona: `developer`, `hr`, `manager`, `project_manager` |
 | `users` | `dir` | Per-user profile directory (default: `./workspace/users`) |
 | `rag` | `enabled` | Enable RAG document search for policy Q&A |
 | `rag` | `documents_dir` | Path to company docs (default: `./data/policies`) |

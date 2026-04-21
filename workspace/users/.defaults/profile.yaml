@@ -1,5 +1,7 @@
 # User Profile — edit directly or use the preferences skill
 name: ""
+designation: ""
+agent_name: ""
 persona: "developer"
 timezone: "UTC"
 communication_style: "balanced"    # direct | balanced | detailed

@@ -16,8 +16,74 @@ import sys
 import logging
 import uuid
 from rich.console import Console
+from rich.prompt import Prompt
 
 console = Console()
+
+
+_PERSONA_CHOICES = {
+    "1": "developer",
+    "2": "hr",
+    "3": "manager",
+    "4": "project_manager",
+}
+
+
+def _prompt_new_user_basics(user_id: str) -> dict | None:
+    """Collect basic profile info from a new user via an interactive form.
+
+    Returns the collected dict, or None if the user aborts (Ctrl+C / EOF).
+    """
+    console.print(
+        f"\n[bold #4FC3F7]Welcome to Assist AI![/bold #4FC3F7] "
+        f"Let's set up your profile ([bold]{user_id}[/bold]).\n"
+        f"[dim]Press Ctrl+C at any time to cancel.[/dim]\n"
+    )
+    try:
+        name = Prompt.ask("[bold]Your name[/bold]").strip()
+        designation = Prompt.ask("[bold]Your designation[/bold] [dim](e.g. Senior Engineer)[/dim]").strip()
+        console.print(
+            "\n[bold]Pick your role:[/bold]\n"
+            "  1. Developer\n"
+            "  2. HR\n"
+            "  3. Manager\n"
+            "  4. Project Manager"
+        )
+        choice = Prompt.ask("Choice", choices=list(_PERSONA_CHOICES.keys()), default="1")
+        persona = _PERSONA_CHOICES[choice]
+        timezone = Prompt.ask(
+            "[bold]Your timezone[/bold] [dim](e.g. Asia/Kolkata, UTC, America/Los_Angeles)[/dim]",
+            default="Asia/Kolkata",
+        ).strip()
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[yellow]Setup cancelled. Run again to start over.[/yellow]")
+        return None
+
+    return {
+        "name": name,
+        "designation": designation,
+        "persona": persona,
+        "timezone": timezone,
+    }
+
+
+def _bootstrap_new_user(user_id: str, basics: dict) -> None:
+    """Create the user's profile directory and write collected form data."""
+    from tools.user_config import get_user_dir, _read_yaml, _write_yaml, _sync_managed_preferences, _file_lock
+
+    # Creates the dir + persona-scoped enabled_skills + memories/preferences.txt
+    user_dir = get_user_dir(user_id, persona=basics["persona"])
+
+    profile_path = user_dir / "profile.yaml"
+    with _file_lock:
+        profile = _read_yaml(profile_path) or {}
+        profile["name"] = basics["name"]
+        profile["designation"] = basics["designation"]
+        profile["persona"] = basics["persona"]
+        profile["timezone"] = basics["timezone"]
+        profile.setdefault("agent_name", "")
+        _write_yaml(profile_path, profile)
+        _sync_managed_preferences(user_id)
 
 from src.load_config import load_config
 from src.logger import setup_logging
@@ -65,53 +131,54 @@ async def run():
 
     logger = logging.getLogger(__name__)
 
-    print("\n╔══════════════════════════════════════╗")
-    print("║         Assist AI — Terminal         ║")
-    print("╚══════════════════════════════════════╝")
-    print(f"  Thread : {args.thread}")
-    if args.user:
-        print(f"  User   : {args.user}")
-    print(f"  Log    : {log_file}")
-    print("  Type 'exit' or 'quit' to end.\n")
-
     try:
         config = load_config(args.config)
-        print(f"  Model  : {config.provider.name} / {config.provider.model}")
     except Exception as exc:
         print(f"[ERROR] Failed to load config: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    # Detect new user → trigger onboarding after agent creation
+    # Detect new user → run interactive form, then trigger agent-driven onboarding
     user_id = args.user
     is_new_user = False
     active_persona = config.persona.active  # default from config.yaml
+    enabled_skill_names: set[str] | None = None
+    agent_name: str = ""
     if user_id:
         from pathlib import Path
         user_profile_dir = Path(config.users.dir).resolve() / user_id
         is_new_user = not user_profile_dir.exists()
-        # Read persona from existing user profile if available
-        if not is_new_user:
+
+        if is_new_user:
+            basics = _prompt_new_user_basics(user_id)
+            if basics is None:
+                sys.exit(0)
+            _bootstrap_new_user(user_id, basics)
+            active_persona = basics["persona"]
+        else:
             profile_path = user_profile_dir / "profile.yaml"
             if profile_path.exists():
                 try:
                     profile = load_yaml_dict(profile_path, context=f"user profile for {user_id}")
                     active_persona = profile.get("persona", active_persona)
+                    agent_name = profile.get("agent_name") or ""
                 except Exception:
                     pass
-    print(f"  Persona: {active_persona}\n")
+            enabled_path = user_profile_dir / "enabled_skills.yaml"
+            if enabled_path.exists():
+                try:
+                    data = load_yaml_dict(enabled_path, context=f"enabled_skills for {user_id}")
+                    enabled_list = data.get("enabled", []) if isinstance(data, dict) else []
+                    enabled_skill_names = set(enabled_list) if enabled_list else None
+                except Exception:
+                    pass
 
     # Override config persona with user's actual persona so the system prompt matches
     config.persona.active = active_persona
+    assistant_label = agent_name.strip() if agent_name else "Assistant"
 
     try:
-        with console.status("[bold cyan]Loading agent...", spinner="dots"):
+        with console.status("[bold #4FC3F7]Loading agent...", spinner="dots"):
             agent = await create_agent(config, user_id=user_id)
-        console.print("[bold green]Agent ready.[/bold green]\n")
-        if is_new_user:
-            console.print(
-                "[bold yellow]New user detected![/bold yellow] "
-                "Running onboarding to set up your profile...\n"
-            )
     except Exception as exc:
         logger.exception("Failed to create agent")
         print(f"[ERROR] Failed to create agent: {exc}", file=sys.stderr)
@@ -125,32 +192,71 @@ async def run():
         "timezone": config.agent.timezone,
     }}
 
+    # Set up tracing (collect labels for banner, no stdout prints)
+    tracing_labels: list[str] = []
     if config.langfuse.enabled:
         try:
             from langfuse.langchain import CallbackHandler as LangfuseCallbackHandler
             langfuse_handler = LangfuseCallbackHandler()
             run_config["callbacks"] = [langfuse_handler]
             logger.info("Langfuse tracing enabled (session_id=%s)", effective_thread_id)
-            print("  Tracing: Langfuse enabled\n")
+            tracing_labels.append("Langfuse")
         except ImportError:
             logger.warning("Langfuse enabled in config but 'langfuse' package not installed — skipping")
 
     if config.langsmith.enabled:
         import os as _os
-        # deepagents/LangChain reads these env vars automatically for tracing
         _os.environ.setdefault("LANGSMITH_TRACING", "true")
         if config.langsmith.project:
             _os.environ.setdefault("LANGSMITH_PROJECT", config.langsmith.project)
         if _os.environ.get("LANGSMITH_API_KEY"):
             logger.info("LangSmith tracing enabled (project=%s)",
                          config.langsmith.project or "default")
-            print(f"  Tracing: LangSmith ({config.langsmith.project or 'default'})\n")
+            tracing_labels.append(f"LangSmith ({config.langsmith.project or 'default'})")
         else:
             logger.warning("LangSmith enabled in config but LANGSMITH_API_KEY not set — skipping")
 
+    # --- Render the Hermes-style banner ---
+    from src.ui_banner import render_banner
+    from pathlib import Path as _Path
+    try:
+        tool_names = [t.name for t in getattr(agent, "tools", [])]
+        if not tool_names:
+            # Fall back to AVAILABLE_TOOLS registry (populated by load_tools)
+            from src.load_tools import AVAILABLE_TOOLS
+            tool_names = sorted(AVAILABLE_TOOLS.keys())
+    except Exception:
+        tool_names = []
+
+    render_banner(
+        console,
+        project_root=_Path(__file__).resolve().parent,
+        tool_names=tool_names,
+        enabled_skill_names=enabled_skill_names,
+        model_label=f"{config.provider.name} / {config.provider.model}",
+        persona=active_persona,
+        user_id=user_id,
+        thread_id=effective_thread_id,
+        log_file=log_file,
+        tracing=tracing_labels,
+    )
+
+    if is_new_user:
+        console.print(
+            "[bold #FFB74D]New user detected![/bold #FFB74D] "
+            "Running onboarding to set up your profile...\n"
+        )
+
     # Auto-trigger onboarding for new users
     if is_new_user:
-        onboarding_msg = "I'm a new user. Please run the onboarding setup for me."
+        onboarding_msg = (
+            "I'm a new user. My basic profile (name, designation, persona, timezone) "
+            "is already filled in via a setup form — do NOT ask for those again. "
+            "Start the onboarding skill from the agent-name step: ask me what I'd like "
+            "to call you, save it with update_user_profile('agent_name', <chosen_name>), "
+            "then continue with the remaining onboarding steps (skill review, approval gates, "
+            "Google connect, confirmation)."
+        )
         logger.info("Auto-triggering onboarding for new user: %s", user_id)
         try:
             with console.status("[bold cyan]Setting up your profile...", spinner="dots"):
@@ -159,7 +265,17 @@ async def run():
                     config=run_config,
                 )
             response = result["messages"][-1].content
-            console.print(f"\n[bold blue]Assistant:[/bold blue] {response}\n")
+            console.print(f"\n[bold blue]{assistant_label}:[/bold blue] {response}\n")
+            # Re-read agent_name in case the onboarding flow just set it
+            try:
+                new_profile_path = Path(config.users.dir).resolve() / user_id / "profile.yaml"
+                if new_profile_path.exists():
+                    new_profile = load_yaml_dict(new_profile_path, context=f"post-onboarding profile for {user_id}")
+                    new_agent_name = (new_profile.get("agent_name") or "").strip()
+                    if new_agent_name:
+                        assistant_label = new_agent_name
+            except Exception:
+                pass
         except Exception as exc:
             logger.warning("Onboarding auto-trigger failed: %s", exc)
 
@@ -206,7 +322,7 @@ async def run():
                     )
 
             response = result["messages"][-1].content
-            console.print(f"\n[bold blue]Assistant:[/bold blue] {response}\n")
+            console.print(f"\n[bold blue]{assistant_label}:[/bold blue] {response}\n")
             logger.info("Assistant [%s]: %s", args.thread, response)
         except Exception as exc:
             logger.exception("Agent error on input: %s", user_input)

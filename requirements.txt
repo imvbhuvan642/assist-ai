@@ -39,6 +39,7 @@ langfuse
 # Display / formatting
 rich
 markdown
+pyfiglet             # ASCII-art banner at startup
 
 # Scheduling (optional)
 apscheduler

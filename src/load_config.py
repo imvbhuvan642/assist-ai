@@ -77,12 +77,12 @@ class MCPConfig(BaseModel):
 
 
 class PersonaConfig(BaseModel):
-    active: Literal["developer", "hr", "manager", "product_manager"] = "developer"
+    active: Literal["developer", "hr", "manager", "project_manager"] = "developer"
 
 
 class UsersConfig(BaseModel):
     dir: str = "./workspace/users"
-    default_persona: Literal["developer", "hr", "manager", "product_manager"] = "developer"
+    default_persona: Literal["developer", "hr", "manager", "project_manager"] = "developer"
 
 
 class RAGConfig(BaseModel):
