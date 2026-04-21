@@ -141,7 +141,6 @@ async def run():
     user_id = args.user
     is_new_user = False
     active_persona = config.persona.active  # default from config.yaml
-    enabled_skill_names: set[str] | None = None
     agent_name: str = ""
     if user_id:
         from pathlib import Path
@@ -163,18 +162,25 @@ async def run():
                     agent_name = profile.get("agent_name") or ""
                 except Exception:
                     pass
-            enabled_path = user_profile_dir / "enabled_skills.yaml"
-            if enabled_path.exists():
-                try:
-                    data = load_yaml_dict(enabled_path, context=f"enabled_skills for {user_id}")
-                    enabled_list = data.get("enabled", []) if isinstance(data, dict) else []
-                    enabled_skill_names = set(enabled_list) if enabled_list else None
-                except Exception:
-                    pass
 
     # Override config persona with user's actual persona so the system prompt matches
     config.persona.active = active_persona
     assistant_label = agent_name.strip() if agent_name else "Assistant"
+
+    # Namespace thread_id by user so conversation history doesn't bleed between users
+    effective_thread_id = f"{user_id}:{args.thread}" if user_id else args.thread
+
+    print("\n╔══════════════════════════════════════╗")
+    print("║         Assist AI — Terminal         ║")
+    print("╚══════════════════════════════════════╝")
+    print(f"  Name    : {assistant_label}")
+    if user_id:
+        print(f"  User    : {user_id}")
+    print(f"  Session : {effective_thread_id}")
+    print(f"  Persona : {active_persona}")
+    print(f"  Model   : {config.provider.name} / {config.provider.model}")
+    print(f"  Log     : {log_file}")
+    print("  Type 'exit' or 'quit' to end.\n")
 
     try:
         with console.status("[bold #4FC3F7]Loading agent...", spinner="dots"):
@@ -184,23 +190,17 @@ async def run():
         print(f"[ERROR] Failed to create agent: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    # Namespace thread_id by user so conversation history doesn't bleed between users
-    effective_thread_id = f"{user_id}:{args.thread}" if user_id else args.thread
-
     run_config: dict = {"configurable": {
         "thread_id": effective_thread_id,
         "timezone": config.agent.timezone,
     }}
 
-    # Set up tracing (collect labels for banner, no stdout prints)
-    tracing_labels: list[str] = []
     if config.langfuse.enabled:
         try:
             from langfuse.langchain import CallbackHandler as LangfuseCallbackHandler
             langfuse_handler = LangfuseCallbackHandler()
             run_config["callbacks"] = [langfuse_handler]
             logger.info("Langfuse tracing enabled (session_id=%s)", effective_thread_id)
-            tracing_labels.append("Langfuse")
         except ImportError:
             logger.warning("Langfuse enabled in config but 'langfuse' package not installed — skipping")
 
@@ -212,34 +212,8 @@ async def run():
         if _os.environ.get("LANGSMITH_API_KEY"):
             logger.info("LangSmith tracing enabled (project=%s)",
                          config.langsmith.project or "default")
-            tracing_labels.append(f"LangSmith ({config.langsmith.project or 'default'})")
         else:
             logger.warning("LangSmith enabled in config but LANGSMITH_API_KEY not set — skipping")
-
-    # --- Render the Hermes-style banner ---
-    from src.ui_banner import render_banner
-    from pathlib import Path as _Path
-    try:
-        tool_names = [t.name for t in getattr(agent, "tools", [])]
-        if not tool_names:
-            # Fall back to AVAILABLE_TOOLS registry (populated by load_tools)
-            from src.load_tools import AVAILABLE_TOOLS
-            tool_names = sorted(AVAILABLE_TOOLS.keys())
-    except Exception:
-        tool_names = []
-
-    render_banner(
-        console,
-        project_root=_Path(__file__).resolve().parent,
-        tool_names=tool_names,
-        enabled_skill_names=enabled_skill_names,
-        model_label=f"{config.provider.name} / {config.provider.model}",
-        persona=active_persona,
-        user_id=user_id,
-        thread_id=effective_thread_id,
-        log_file=log_file,
-        tracing=tracing_labels,
-    )
 
     if is_new_user:
         console.print(
